@@ -16,7 +16,7 @@
 //#define timeout_ScreenOn 180000            // The time at which the OXOTP shutdown after inactivity
 
 
-String rondom_letters = "AEF2345689";      // This string contains the characters used to generate the wifi password
+String rondom_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";      // This string contains the characters used to generate the wifi password
 
 #include<WiFi.h>
 #include<WebServer.h>
@@ -45,6 +45,7 @@ WebServer server(80);
 #include"variable_runtime.h"
 #include"totp_plus.h"
 #include"ble_hid.h"
+#include"pin_lock.h"
 #include"index.h"
 #include"css.h"
 #include"favico.h"
@@ -54,6 +55,7 @@ WebServer server(80);
 #include"screen2.h"
 #include"screen3.h"
 #include"screen4.h"
+#include"screen5.h"
 #include"math.h"
 
 void setup() {
@@ -151,6 +153,10 @@ void setup() {
     }
   }
 
+  // If a PIN is set, block here until it is entered on the device.
+  // No PIN set (or an un-enterable one) means no lock screen.
+  requireDeviceUnlock();
+
 }
 
 void loop() {
@@ -161,12 +167,15 @@ void loop() {
       OTP_screen();
       break;
     case 1:
-      Time_screen();
+      OTP_list_screen();
       break;
     case 2:
-      Wifi_screen();
+      Time_screen();
       break;
     case 3:
+      Wifi_screen();
+      break;
+    case 4:
       Time_drift_screen();
       break;
   }

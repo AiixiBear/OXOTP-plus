@@ -358,11 +358,11 @@
       </div>
       <div id="setPinBox" hidden>
         <h3>Set a Device PIN (optional)</h3>
-        <p>Setting a PIN locks the OTP list and settings behind it. The PIN is sent to the device only when you set or enter it, and is never stored in the browser.</p>
+        <p>Setting a PIN locks the OTP list and settings behind it. The PIN is sent to the device only when you set or enter it, and is never stored in the browser. The PIN can only use the digits 7 and 8 (4-12 digits): on the device, button B enters 7 and button A enters 8.</p>
         <label for="newPinInput">New PIN:</label>
-        <input type="password" id="newPinInput" autocomplete="new-password">
+        <input type="password" id="newPinInput" autocomplete="new-password" inputmode="numeric">
         <label for="confirmPinInput">Confirm PIN:</label>
-        <input type="password" id="confirmPinInput" autocomplete="new-password">
+        <input type="password" id="confirmPinInput" autocomplete="new-password" inputmode="numeric">
         <button type="button" id="setPinButton" class="applyWifiButton" style="margin-top: 0.5rem; padding: 8px 20px;">Set PIN</button>
         <button type="button" id="dismissSetPinButton" class="unixButton" style="margin-top: 0.5rem;">Not now</button>
       </div>
@@ -716,6 +716,13 @@
         return;
       }
 
+      // The device lock screen only has two buttons (BtnB = 7, BtnA = 8),
+      // so a PIN with any other digit could never be entered on the device.
+      if (!/^[78]{4,12}$/.test(newPin)) {
+        showToast('PIN must be 4-12 digits using only 7 and 8 (B = 7, A = 8 on the device).', 'error');
+        return;
+      }
+
       if (newPin !== confirmPin) {
         showToast('PINs do not match.', 'error');
         return;
@@ -736,6 +743,8 @@
         if (text === 'OK') {
           showToast('PIN set.', 'success');
           document.getElementById('lockPanel').hidden = true;
+        } else if (text === 'INVALID PIN') {
+          showToast('PIN must be 4-12 digits using only 7 and 8 (B = 7, A = 8 on the device).', 'error');
         } else if (text === 'LOCKED') {
           showToast('Device is locked. Unlock it first to change the PIN.', 'error');
         } else {

@@ -63,6 +63,10 @@ Further work done by [@KonradIT](https://github.com/KonradIT) to add:
 
 ![3](./img/3.png)
 
+### Forgot the device PIN?
+
+If a PIN is set, the device asks for it on boot (button B enters 7, button A enters 8). There is no way to recover a forgotten PIN: the WebUI cannot reach the device either, because the WiFi configurator only starts after the device is unlocked. The only way back in is to erase the flash and re-flash the firmware (e.g. `esptool.py erase_flash`, then upload the firmware again), which also wipes all stored OTP secrets from NVS. Back up your secrets (even on paper) before setting a PIN.
+
 ## HOW TO BUILD (PlatformIO - Recommended):
 
  - Clone the repo

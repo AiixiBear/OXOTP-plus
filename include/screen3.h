@@ -1,4 +1,7 @@
 // DNS Server for Captive Portal
+#include <time.h>
+#include <esp_sntp.h>
+
 DNSServer dnsServer;
 const byte DNS_PORT = 53;
 bool _dnsStarted = false;
@@ -24,7 +27,53 @@ void handleGenerate204() {
   server.send(302, "text/plain", "");
 }
 
+// NTP time sync, only usable in STA mode (AP mode has no uplink).
+// Bounded: tries a few times, then gives up without blocking the WiFi
+// screen. On failure the manual sync paths (WebUI /unix, drift screen)
+// are untouched, and the previously held time is kept.
+// Note: getLocalTime alone cannot prove a sync happened, because it also
+// succeeds while the RTC still holds a plausible old time. The SNTP sync
+// status is checked instead, so last_time_synced is only updated when the
+// time actually came from an NTP server.
+#define NTP_SYNC_ATTEMPTS 3
+#define NTP_SYNC_WAIT_MS 2000
+
+bool syncTimeFromNTP() {
+  long gmtOffset_sec = (long)timezone_h * 3600 + (long)timezone_m * 60;
+  configTime(gmtOffset_sec, 0, "pool.ntp.org", "time.google.com");
+
+  for (int attempt = 0; attempt < NTP_SYNC_ATTEMPTS; attempt++) {
+    unsigned long start = millis();
+    while (millis() - start < NTP_SYNC_WAIT_MS) {
+      if (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED) {
+        time_t epoch = time(nullptr);
+        // Reject implausible results instead of trusting them.
+        if (epoch < 1700000000L) {
+          break;
+        }
+        tm* utc_tm = gmtime(&epoch);
+        M5.Rtc.setDateTime(utc_tm);
+        setTime(epoch);
+        NVS.setInt("last_time_synced", (int)epoch);
+        Serial.println("NTP time sync OK");
+        return true;
+      }
+      delay(100);
+    }
+  }
+
+  Serial.println("NTP time sync failed, keeping previous time");
+  return false;
+}
+
 void Wifi_screen() {
+
+  // When the AP password was printed on screen, and whether it has been
+  // masked since. The password is shown in clear text for 5s, then
+  // replaced with asterisks: it would otherwise stay readable by anyone
+  // nearby for as long as the WiFi screen is open.
+  unsigned long wifiPassShownAt = 0;
+  bool wifiPassMasked = false;
 
   // -------  GET THE WIFI SETTINGS --------- //
 
@@ -38,9 +87,13 @@ void Wifi_screen() {
 
 
   //----- generate password for wifi
+  // Arduino random() is backed by the ESP32 hardware RNG (esp_random)
+  // unless randomSeed() was called, which this project never does, so no
+  // extra seeding is needed. random(min, max) returns [min, max), so the
+  // upper bound must be the full length for every character to be usable.
   String pass_gen = "";
-  for (int i = 0; i < 8; i++) {
-    pass_gen += rondom_letters[random(0, rondom_letters.length() - 1)];
+  for (int i = 0; i < 12; i++) {
+    pass_gen += rondom_letters[random(0, rondom_letters.length())];
   }
   
   String pass_static = ""; // Default password
@@ -124,12 +177,18 @@ void Wifi_screen() {
     Wifi_PASSWORD = pass_gen; // generate a new password for fallback AP mode
     WiFi.mode(WIFI_AP);
     WiFi.softAP(AP_ssid, pass_gen);
-    Serial.println("AP mode started, ssid: " + String(AP_ssid) + ", password: " + password);
+    Serial.println("AP mode started (fallback)");
     
     // Start DNS server for captive portal
     dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
     _dnsStarted = true;
     Serial.println("Captive portal DNS started (fallback)");
+  }
+
+  // STA mode with a working uplink: correct the RTC from NTP. AP mode has
+  // no uplink, and a failed sync simply keeps the previous time.
+  if (Wifi_Mode != "AP" && WiFi.status() == WL_CONNECTED) {
+    syncTimeFromNTP();
   }
 
     // use mdns to resolve the hostname
@@ -178,6 +237,7 @@ void Wifi_screen() {
   // only for M5StickC Plus 2
   if (Wifi_Mode == "AP") {
     M5.Lcd.print (Wifi_PASSWORD);
+    wifiPassShownAt = millis();
 
     if (current_screen == STICKCPLUS2) {
       M5.Lcd.setFont(&beta5pt7b);
@@ -264,8 +324,6 @@ void Wifi_screen() {
 
       for (int i = 0; i < hmac_length; i++) {
         hmacKey[i] = jsondata["data"][i];
-
-        Serial.println("key ' " + String(i) + "'" + hmacKey[i]);
       }
 
       int id = jsondata["id"];
@@ -419,6 +477,13 @@ void Wifi_screen() {
     String  pincode = NVS.getString ("pincode");
 
     if (pin_UNLOCK == pincode) {
+      // The device only has two buttons (BtnA = 8, BtnB = 7), so a PIN
+      // with any other digit could never be entered on the device.
+      // Reject it here instead of writing an un-enterable PIN to NVS.
+      if (!pinIsEnterable(pin)) {
+        server.send(200, " text/html", "INVALID PIN");
+        return;
+      }
       pin_UNLOCK = pin;
       NVS.setString ("pincode", pin);
       server.send(200, " text/html", "OK");
@@ -833,6 +898,26 @@ server.on("/setWifi", HTTP_POST, []() {
   Serial.println("HTTP server started");
   
   while (switchscreen() == false) {
+    // Mask the AP password 5s after it was printed. This runs once and
+    // never blocks: the DNS and HTTP handlers below keep running.
+    if (Wifi_Mode == "AP" && !wifiPassMasked && wifiPassShownAt != 0 &&
+        millis() - wifiPassShownAt > 5000) {
+      wifiPassMasked = true;
+      int maskLen = Wifi_PASSWORD.length();
+      if (current_screen == STICKC) {
+        M5.Lcd.setFont(&beta5pt7b);
+        M5.Lcd.fillRect(10, 43, maskLen * 5 + 4, 8, bg_color);
+        M5.Lcd.setCursor(10, 43);
+      } else {
+        M5.Lcd.setFont(&beta8pt7b);
+        M5.Lcd.fillRect(10, 90, maskLen * 7 + 4, 12, bg_color);
+        M5.Lcd.setCursor(10, 90);
+      }
+      M5.Lcd.setTextColor(txt_color, bg_color);
+      for (int i = 0; i < maskLen; i++) {
+        M5.Lcd.print("*");
+      }
+    }
     // Process DNS requests for captive portal
     if (_dnsStarted) {
       dnsServer.processNextRequest();

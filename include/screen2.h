@@ -109,6 +109,18 @@ void  Time_screen() {
         M5.Lcd.setCursor(13, 98);
         M5.Lcd.print(currentDate);
       }
+
+      // Battery level and charging state, bottom line.
+      String battInfo = "Batt " + String((int)M5.Power.getBatteryLevel()) + "%" + (M5.Power.isCharging() ? " CHG" : "");
+      if (current_screen == STICKC) {
+        M5.Lcd.setFont(&beta5pt7b);
+        M5.Lcd.setCursor(10, 68);
+      } else {
+        M5.Lcd.setFont(&beta8pt7b);
+        M5.Lcd.setCursor(13, 120);
+      }
+      M5.Lcd.setTextColor(txt_color, bg_color);
+      M5.Lcd.print(battInfo);
     }
   }
 }
