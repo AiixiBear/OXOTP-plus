@@ -162,6 +162,27 @@
       background-color: #004080;
     }
 
+    /* OTA firmware upload progress bar */
+    #prgbar {
+      width: 100%;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    #bar {
+      height: 100%;
+      width: 0;
+      background: rgb(33, 166, 146);
+      border-radius: 6px;
+      transition: width 0.2s ease;
+    }
+
+    #prg {
+      text-align: center;
+    }
+
     .configTitle {
       text-align: center;
       margin-top: 1rem;
@@ -202,6 +223,46 @@
       color: white;
       border-color: #ff4444;
       background-color: #ff4444;
+    }
+
+    /* Live TOTP code display */
+    .otpCode {
+      font-family: monospace;
+      font-size: 1.4rem;
+      letter-spacing: 0.15em;
+    }
+
+    .otpCountdown {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .copyButton {
+      margin-left: 8px;
+      background-color: rgba(255, 255, 255, 0.047);
+      border: 2px solid rgb(203, 158, 244);
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: purple;
+      cursor: pointer;
+    }
+
+    .copyButton:hover {
+      background-color: purple;
+      color: white;
+    }
+
+    /* PIN lock / set-PIN panel */
+    .lockPanel {
+      margin: 1rem 0;
+      padding: 1rem;
+      border: 2px solid rgb(203, 158, 244);
+      border-radius: 8px;
+      background: rgba(95, 158, 160, 0.1);
+    }
+
+    .lockPanel input[type="password"] {
+      margin-top: 0.5rem;
     }
 
     /* Toast Notifications */
@@ -285,7 +346,29 @@
   </header>
 
   <main class="container" style="max-width: 800px;">
-    <section>
+    <!-- PIN lock / set-PIN panel: shown when the device is locked, or to
+         offer setting a PIN when none is set yet. Hidden once unlocked. -->
+    <div id="lockPanel" class="lockPanel" hidden>
+      <div id="unlockBox" hidden>
+        <h3>Device Locked</h3>
+        <p>Enter the device PIN to unlock the configurator.</p>
+        <label for="pinInput">PIN:</label>
+        <input type="password" id="pinInput" autocomplete="off">
+        <button type="button" id="unlockButton" class="applyWifiButton" style="margin-top: 0.5rem; padding: 8px 20px;">Unlock</button>
+      </div>
+      <div id="setPinBox" hidden>
+        <h3>Set a Device PIN (optional)</h3>
+        <p>Setting a PIN locks the OTP list and settings behind it. The PIN is sent to the device only when you set or enter it, and is never stored in the browser.</p>
+        <label for="newPinInput">New PIN:</label>
+        <input type="password" id="newPinInput" autocomplete="new-password">
+        <label for="confirmPinInput">Confirm PIN:</label>
+        <input type="password" id="confirmPinInput" autocomplete="new-password">
+        <button type="button" id="setPinButton" class="applyWifiButton" style="margin-top: 0.5rem; padding: 8px 20px;">Set PIN</button>
+        <button type="button" id="dismissSetPinButton" class="unixButton" style="margin-top: 0.5rem;">Not now</button>
+      </div>
+    </div>
+
+    <section id="appSection">
       <!-- Overview Panel -->
       <div role="tabpanel">
         <h3>OTP List</h3>
@@ -342,6 +425,12 @@
         <input type="color" id="txt_color" name="txt_color" value="#ffffff">
 
         <button type="button" id="setScreenSettings" class="unixButton">Set Screen Settings</button>
+
+        <h4 class="configTitle">Device PIN</h4>
+        <hr style="margin-top: 4px;">
+
+        <p>Lock the OTP list and settings behind a PIN.</p>
+        <button type="button" id="showSetPinButton" class="unixButton">Set / Change PIN</button>
 
         <hr style="margin-top: 3rem;">
         <button type="button" id="factoryReset" class="resetButton">Factory Reset</button>
@@ -434,6 +523,48 @@
       }, duration + 300);
     }
 
+    // --- PLAIN-TEXT RESULT HANDLING ---
+    // Write endpoints reply with plain text ("OK", "LOCKED",
+    // "ALREADY EXIST", "INVALID"). Only "OK" is a success; anything else
+    // must surface as an error toast, never as a success.
+    function toastForResult(message, successMessage) {
+      const text = (message || '').trim();
+      if (text === 'OK') {
+        showToast(successMessage || 'OK', 'success');
+        return true;
+      }
+      if (text === 'LOCKED') {
+        showToast('Device is locked. Enter the PIN to unlock.', 'error');
+        return false;
+      }
+      if (text === 'ALREADY EXIST') {
+        showToast('An OTP with this ID already exists.', 'error');
+        return false;
+      }
+      if (text === 'INVALID') {
+        showToast('Invalid value.', 'error');
+        return false;
+      }
+      if (text) {
+        showToast(text, 'info');
+        return false;
+      }
+      return false;
+    }
+
+    // JSON endpoints reply with plain text "LOCKED" instead of JSON when
+    // the device is locked, so read the body as text first and only parse
+    // it when it is not LOCKED. Returns { locked: true } or the parsed
+    // JSON object; a malformed body still rejects to the caller's catch.
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      const text = await response.text();
+      if (text.trim() === 'LOCKED') {
+        return { locked: true };
+      }
+      return JSON.parse(text);
+    }
+
     // --- TAB SELECTION LOGIC ---
     const _ = el => [...document.querySelectorAll(el)];
     _('[role="tab"]')[0].setAttribute('aria-current', 'true');
@@ -462,13 +593,183 @@
       });
     });
 
+    // --- PIN LOCK LOGIC ---
+    // The PIN is only ever sent to the device in the /UNLOCK and /set_pin
+    // requests below. It is never written to localStorage or any other
+    // browser storage, and the input fields are cleared after each attempt.
+    function showLockPanel() {
+      document.getElementById('appSection').hidden = true;
+      document.getElementById('lockPanel').hidden = false;
+      document.getElementById('unlockBox').hidden = false;
+      document.getElementById('setPinBox').hidden = true;
+    }
+
+    function showSetPinBox() {
+      document.getElementById('lockPanel').hidden = false;
+      document.getElementById('unlockBox').hidden = true;
+      document.getElementById('setPinBox').hidden = false;
+    }
+
+    function hideLockPanel() {
+      document.getElementById('lockPanel').hidden = true;
+      document.getElementById('appSection').hidden = false;
+    }
+
+    // Load the OTP list and the settings. Only called once the device is
+    // known to be unlocked (or has no PIN), so locked endpoints are not
+    // hit with requests that would come back as LOCKED.
+    async function loadAll() {
+      syncTime(false);
+      loadScreenSettings();
+      loadTimezone();
+      loadWifiSettings();
+      await loadOtpList();
+      await loadCodes();
+    }
+
+    // On load: /check_pin_secure reports whether a PIN exists at all
+    // ("OK" = set, "NOT" = none), /check_pin_LOCK reports whether the
+    // device is currently unlocked ("UNLOCKED" / "LOCKED").
+    async function checkPinStatus() {
+      try {
+        const secureResponse = await fetch(`${baseUrl}/check_pin_secure`, {
+          method: 'POST'
+        });
+        const hasPin = (await secureResponse.text()).trim() === 'OK';
+
+        if (!hasPin) {
+          // No PIN set: the configurator is open, but offer setting one.
+          showSetPinBox();
+          await loadAll();
+          return;
+        }
+
+        const lockResponse = await fetch(`${baseUrl}/check_pin_LOCK`, {
+          method: 'POST'
+        });
+        const lockText = (await lockResponse.text()).trim();
+
+        if (lockText === 'UNLOCKED') {
+          hideLockPanel();
+          await loadAll();
+          return;
+        }
+
+        showLockPanel();
+      } catch (error) {
+        console.error('Error checking PIN status:', error);
+        showToast('Could not reach the device to check the PIN status.', 'error');
+        // Fall back to loading the page instead of leaving a blank screen;
+        // locked endpoints will report LOCKED through their own handlers.
+        await loadAll();
+      }
+    }
+
+    document.getElementById('unlockButton').addEventListener('click', async function() {
+      const pinInput = document.getElementById('pinInput');
+      const pin = pinInput.value;
+
+      if (!pin) {
+        showToast('Please enter the PIN.', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}/UNLOCK`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ pin: pin })
+        });
+        const text = (await response.text()).trim();
+        pinInput.value = '';
+
+        if (text === 'OK') {
+          showToast('Unlocked.', 'success');
+          hideLockPanel();
+          await loadAll();
+        } else {
+          showToast('Incorrect PIN.', 'error');
+        }
+      } catch (error) {
+        console.error('Error unlocking device:', error);
+        showToast('Could not reach the device.', 'error');
+      }
+    });
+
+    document.getElementById('pinInput').addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        document.getElementById('unlockButton').click();
+      }
+    });
+
+    document.getElementById('setPinButton').addEventListener('click', async function() {
+      const newPinInput = document.getElementById('newPinInput');
+      const confirmPinInput = document.getElementById('confirmPinInput');
+      const newPin = newPinInput.value;
+      const confirmPin = confirmPinInput.value;
+
+      if (!newPin) {
+        showToast('Please enter a new PIN.', 'warning');
+        return;
+      }
+
+      if (newPin !== confirmPin) {
+        showToast('PINs do not match.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}/set_pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ newpin: newPin })
+        });
+        const text = (await response.text()).trim();
+        newPinInput.value = '';
+        confirmPinInput.value = '';
+
+        if (text === 'OK') {
+          showToast('PIN set.', 'success');
+          document.getElementById('lockPanel').hidden = true;
+        } else if (text === 'LOCKED') {
+          showToast('Device is locked. Unlock it first to change the PIN.', 'error');
+        } else {
+          showToast(text, 'error');
+        }
+      } catch (error) {
+        console.error('Error setting PIN:', error);
+        showToast('Could not reach the device.', 'error');
+      }
+    });
+
+    document.getElementById('dismissSetPinButton').addEventListener('click', function() {
+      document.getElementById('lockPanel').hidden = true;
+    });
+
+    document.getElementById('showSetPinButton').addEventListener('click', function() {
+      showSetPinBox();
+      window.scrollTo(0, 0);
+    });
+
     // --- ADD OTP FORM SUBMISSION LOGIC ---
     document.getElementById('addForm').addEventListener('submit', function(event) {
       event.preventDefault();
 
       const id = document.getElementById('id').value;
       const keyString = document.getElementById('key').value;
-      const keyArray = base32Decode(keyString);
+      const base32Error = validateBase32Secret(keyString);
+      if (base32Error) {
+        showToast(base32Error, 'error');
+        return;
+      }
+      const normalizedKey = normalizeBase32Secret(keyString);
+      document.getElementById('key').value = normalizedKey;
+      const keyArray = base32Decode(normalizedKey);
       const hmacLength = keyArray.length;
       const label = document.getElementById('label').value;
       const user = document.getElementById('user').value;
@@ -492,8 +793,9 @@
       })
       .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
-        setTimeout(() => location.reload(), 1500);
+        if (toastForResult(message, 'OTP added.')) {
+          setTimeout(() => location.reload(), 1500);
+        }
       })
       .catch(error => {
         console.error('There was a problem with the fetch operation:', error);
@@ -513,8 +815,8 @@
         body: JSON.stringify(payload)
       })
       .then(response => response.text())
-      .then(data => {
-        console.log(data);
+      .then(message => {
+        toastForResult(message, 'Timezone saved.');
       })
       .catch(error => {
         console.error('There was a problem with the fetch operation:', error);
@@ -541,7 +843,7 @@
       .then(message => {
         console.log('Time synced:', message);
         if (showNotification) {
-          showToast(message, 'success');
+          toastForResult(message, 'Time synced.');
         }
       })
       .catch(error => {
@@ -549,8 +851,7 @@
       });
     }
 
-    // Auto-sync time on page load
-    syncTime(false);
+    // Time is synced on load by loadAll(), after the PIN check has passed.
 
     // --- SCREEN SETTINGS LOGIC ---
     function convertToRGB888(color) {
@@ -599,7 +900,7 @@
       })
       .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
+        toastForResult(message, 'Screen settings saved.');
       })
       .catch(error => {
         console.error('There was a problem with the fetch operation:', error);
@@ -607,34 +908,65 @@
     });
 
     // Fetch initial screen values
-    fetch(`${baseUrl}/getScreen`)
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('screenTimeout').value = data.timeout;
-        document.getElementById('brightness').value = data.brightness;
-        document.getElementById('bg_color').value = convertToRGB888(data.bg_color);
-        document.getElementById('txt_color').value = convertToRGB888(data.txt_color);
-      })
-      .catch(error => console.error('Error fetching initial values:', error));
+    function loadScreenSettings() {
+      fetchJson(`${baseUrl}/getScreen`)
+        .then(data => {
+          if (data.locked) {
+            return;
+          }
+          document.getElementById('screenTimeout').value = data.timeout;
+          document.getElementById('brightness').value = data.brightness;
+          document.getElementById('bg_color').value = convertToRGB888(data.bg_color);
+          document.getElementById('txt_color').value = convertToRGB888(data.txt_color);
+        })
+        .catch(error => console.error('Error fetching initial values:', error));
+    }
 
     // Fetch timezone from server
-    fetch(`${baseUrl}/timezone`)
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('timezone').value = data.timezone;
-      })
-      .catch(error => console.error('Error fetching initial values:', error));
+    function loadTimezone() {
+      fetchJson(`${baseUrl}/timezone`)
+        .then(data => {
+          if (data.locked) {
+            return;
+          }
+          document.getElementById('timezone').value = data.timezone;
+        })
+        .catch(error => console.error('Error fetching initial values:', error));
+    }
 
     // --- BASE32 DECODING LOGIC ---
+    // Drop whitespace and padding, uppercase. Used for both manual entry
+    // and secrets parsed out of otpauth:// URIs.
+    function normalizeBase32Secret(secret) {
+      return secret.replace(/\s/g, '').replace(/=/g, '').toUpperCase();
+    }
+
+    // Returns an error message when the secret cannot be used as Base32,
+    // or null when it is valid. Invalid characters used to be silently
+    // decoded into a wrong key; they are now rejected up front.
+    function validateBase32Secret(secret) {
+      const cleaned = normalizeBase32Secret(secret);
+      if (!cleaned) {
+        return 'Secret key is empty.';
+      }
+      if (/[^A-Z2-7]/.test(cleaned)) {
+        return 'Secret key contains invalid Base32 characters. Use only A-Z and 2-7.';
+      }
+      return null;
+    }
+
     function base32Decode(base32String) {
       const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
       let bits = '';
       const bytes = [];
 
-      base32String = base32String.replace(/=/g, '');
+      base32String = normalizeBase32Secret(base32String);
 
       for (let i = 0; i < base32String.length; i++) {
-        const value = base32Chars.indexOf(base32String[i].toUpperCase());
+        const value = base32Chars.indexOf(base32String[i]);
+        if (value < 0) {
+          throw new Error('Invalid Base32 character: ' + base32String[i]);
+        }
         bits += value.toString(2).padStart(5, '0');
       }
 
@@ -670,6 +1002,12 @@
         throw new Error('Missing required parameter: secret');
       }
 
+      const cleanedSecret = normalizeBase32Secret(secret);
+      const secretError = validateBase32Secret(cleanedSecret);
+      if (secretError) {
+        throw new Error('Invalid Base32 secret in URI: ' + secretError);
+      }
+
       let user = label;
       let serviceName = issuer || '';
 
@@ -696,7 +1034,7 @@
       }
 
       return {
-        secret: secret.toUpperCase().replace(/\s/g, ''),
+        secret: cleanedSecret,
         label: serviceName,
         user: user,
         algorithm: algorithm,
@@ -756,10 +1094,9 @@
 
     async function findNextAvailableId() {
       try {
-        const response = await fetch(`${baseUrl}/getOTPs`);
-        const data = await response.json();
+        const data = await fetchJson(`${baseUrl}/getOTPs`);
 
-        if (data === 'LOCKED') {
+        if (data.locked) {
           return 1;
         }
 
@@ -778,24 +1115,175 @@
     }
 
     // --- GET OTP LIST LOGIC ---
-    fetch(`${baseUrl}/getOTPs`)
-      .then(response => response.json())
-      .then(data => {
-        const otpList = document.getElementById('otpList');
-        data.OTPs.forEach(entry => {
-          const listItem = document.createElement('li');
-          listItem.classList.add('otpItem');
-          listItem.innerHTML = `
-            <strong>ID: </strong>${entry.id}<br>
-            <strong>Label:</strong> ${entry.L}<br>
-            <strong>User:</strong> ${entry.U}<br>
-            <strong>Digits:</strong> ${entry.D || 6}
-            <button type="button" class="deleteButton" onclick="deleteOTP(${entry.id})">delete</button>
-          `;
-          otpList.appendChild(listItem);
+    // Labels and usernames come from the device and are inserted with
+    // textContent only, never innerHTML, so a stored value cannot inject
+    // markup into the page.
+    function appendTextField(parent, label, value) {
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      parent.appendChild(strong);
+      parent.appendChild(document.createTextNode(value));
+    }
+
+    function loadOtpList() {
+      return fetchJson(`${baseUrl}/getOTPs`)
+        .then(data => {
+          if (data.locked) {
+            showToast('Device is locked. Enter the PIN to unlock.', 'error');
+            showLockPanel();
+            return;
+          }
+
+          const otpList = document.getElementById('otpList');
+          otpList.innerHTML = '';
+          data.OTPs.forEach(entry => {
+            const listItem = document.createElement('li');
+            listItem.classList.add('otpItem');
+
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.classList.add('deleteButton');
+            deleteButton.textContent = 'delete';
+            deleteButton.addEventListener('click', function() {
+              deleteOTP(entry.id);
+            });
+            listItem.appendChild(deleteButton);
+
+            appendTextField(listItem, 'ID: ', String(entry.id));
+            listItem.appendChild(document.createElement('br'));
+            appendTextField(listItem, 'Label: ', entry.L || '');
+            listItem.appendChild(document.createElement('br'));
+            appendTextField(listItem, 'User: ', entry.U || '');
+            listItem.appendChild(document.createElement('br'));
+            appendTextField(listItem, 'Digits: ', String(entry.D || 6));
+            listItem.appendChild(document.createElement('br'));
+
+            // Live code for this entry, filled in by loadCodes(). The
+            // code itself is generated on the device; the page never
+            // sees the secret.
+            const codeLabel = document.createElement('strong');
+            codeLabel.textContent = 'Code: ';
+            listItem.appendChild(codeLabel);
+            const codeSpan = document.createElement('span');
+            codeSpan.classList.add('otpCode');
+            codeSpan.dataset.otpId = entry.id;
+            codeSpan.textContent = '...';
+            listItem.appendChild(codeSpan);
+
+            const copyButton = document.createElement('button');
+            copyButton.type = 'button';
+            copyButton.classList.add('copyButton');
+            copyButton.textContent = 'copy';
+            copyButton.addEventListener('click', function() {
+              copyCode(entry.id);
+            });
+            listItem.appendChild(copyButton);
+            listItem.appendChild(document.createElement('br'));
+
+            const countdownSpan = document.createElement('span');
+            countdownSpan.classList.add('otpCountdown');
+            countdownSpan.dataset.otpId = entry.id;
+            countdownSpan.textContent = '';
+            listItem.appendChild(countdownSpan);
+
+            otpList.appendChild(listItem);
+          });
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    }
+
+    // --- LIVE TOTP CODES LOGIC ---
+    // Codes come from GET /getCodes, which generates them on the device.
+    // The page keeps the current code per OTP id and the seconds left in
+    // the 30 second window, counts down once a second, and refetches
+    // when the window rolls over.
+    let otpCodes = {};
+    let codeRemaining = 0;
+    let codeTimerId = null;
+
+    async function loadCodes() {
+      try {
+        const data = await fetchJson(`${baseUrl}/getCodes`);
+
+        if (data.locked) {
+          showToast('Device is locked. Enter the PIN to unlock.', 'error');
+          showLockPanel();
+          return;
+        }
+
+        otpCodes = {};
+        (data.codes || []).forEach(function(entry) {
+          otpCodes[entry.id] = entry.code;
         });
-      })
-      .catch(error => console.error('Error fetching data:', error));
+        codeRemaining = typeof data.remaining === 'number' ? data.remaining : 30;
+        updateCodeDisplay();
+        startCodeTimer();
+      } catch (error) {
+        console.error('Error fetching codes:', error);
+      }
+    }
+
+    function updateCodeDisplay() {
+      document.querySelectorAll('.otpCode').forEach(function(span) {
+        const code = otpCodes[span.dataset.otpId];
+        span.textContent = code || '...';
+      });
+      document.querySelectorAll('.otpCountdown').forEach(function(span) {
+        span.textContent = codeRemaining > 0 ? codeRemaining + 's left' : '';
+      });
+    }
+
+    function startCodeTimer() {
+      if (codeTimerId !== null) {
+        return;
+      }
+      codeTimerId = setInterval(function() {
+        codeRemaining -= 1;
+        if (codeRemaining <= 0) {
+          loadCodes();
+          return;
+        }
+        updateCodeDisplay();
+      }, 1000);
+    }
+
+    function copyCode(id) {
+      const code = otpCodes[id];
+      if (!code) {
+        showToast('Code is not available yet.', 'warning');
+        return;
+      }
+      // The clipboard API is not available on plain HTTP origins, so
+      // fall back to a temporary textarea when it is missing or fails.
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(function() {
+          showToast('Code copied.', 'success');
+        }).catch(function() {
+          copyCodeFallback(code);
+        });
+      } else {
+        copyCodeFallback(code);
+      }
+    }
+
+    function copyCodeFallback(code) {
+      const textarea = document.createElement('textarea');
+      textarea.value = code;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        if (document.execCommand('copy')) {
+          showToast('Code copied.', 'success');
+        } else {
+          showToast('Could not copy the code.', 'error');
+        }
+      } catch (error) {
+        showToast('Could not copy the code.', 'error');
+      }
+      textarea.remove();
+    }
 
     function deleteOTP(id) {
       fetch(`${baseUrl}/delete`, {
@@ -805,16 +1293,11 @@
         },
         body: JSON.stringify({ id: id })
       })
-      .then(response => {
-        if (response.ok) {
-          return 'removed';
-        } else {
-          throw new Error('Failed to delete');
-        }
-      })
+      .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
-        setTimeout(() => location.reload(), 1500);
+        if (toastForResult(message, 'OTP removed.')) {
+          setTimeout(() => location.reload(), 1500);
+        }
       })
       .catch(error => {
         console.error('Error deleting OTP:', error);
@@ -829,12 +1312,16 @@
       togglePasswordModeVisibility();
     }
 
-    fetch(`${baseUrl}/getWifi`)
-      .then(response => response.json())
-      .then(data => {
-        populateFields(data);
-      })
-      .catch(error => console.error('Error fetching initial values:', error));
+    function loadWifiSettings() {
+      fetchJson(`${baseUrl}/getWifi`)
+        .then(data => {
+          if (data.locked) {
+            return;
+          }
+          populateFields(data);
+        })
+        .catch(error => console.error('Error fetching initial values:', error));
+    }
 
     function togglePasswordModeVisibility() {
       const wifiMode = document.getElementById('wifiModeSelect').value;
@@ -866,7 +1353,7 @@
       })
       .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
+        toastForResult(message, 'WiFi settings applied.');
       })
       .catch(error => {
         console.error('Error applying settings:', error);
@@ -883,7 +1370,7 @@
         })
         .then(response => response.text())
         .then(message => {
-          showToast(message, 'success');
+          toastForResult(message, 'Device reset.');
         })
         .catch(error => {
           console.error('Error resetting device:', error);
@@ -900,6 +1387,10 @@
 
     document.getElementById('upload_form').addEventListener('submit', function(e) {
       e.preventDefault();
+
+      // Reset the progress display for this upload.
+      document.getElementById('bar').style.width = '0%';
+      document.getElementById('prg').textContent = '';
 
       const form = document.getElementById('upload_form');
       const data = new FormData(form);
@@ -945,6 +1436,10 @@
         }, 500);
       }
     });
+
+    // Check the PIN status first; the OTP list and settings are only
+    // loaded once the device is known to be unlocked (or has no PIN).
+    checkPinStatus();
   </script>
 </body>
 </html>

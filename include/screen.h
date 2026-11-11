@@ -187,7 +187,7 @@ bool switchscreen() {
     showmenu();
     drawBattery();
     drawBTStatus();
-    M5.Speaker.tone(4000, 100);
+// M5.Speaker.tone(4000, 100);
     return true;
   } showmenu();
   drawBTStatus();

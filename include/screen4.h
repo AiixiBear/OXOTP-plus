@@ -108,7 +108,7 @@ void Time_drift_screen() {
       if (is_double) {
         selected_field = 1 - selected_field;
         last_release_ms = 0;
-        M5.Speaker.tone(3000, 80);
+// M5.Speaker.tone(3000, 80);
       } else {
         time_t t;
         tm rtc_tm = M5.Rtc.getDateTime().get_tm();
@@ -126,7 +126,7 @@ void Time_drift_screen() {
         M5.Rtc.setDateTime(adj);
         setTime(adj->tm_hour, adj->tm_min, adj->tm_sec, adj->tm_mday, adj->tm_mon + 1, adj->tm_year + 1900);
         NVS.setInt("last_time_synced", (int)t);
-        M5.Speaker.tone(2000, 50);
+// M5.Speaker.tone(2000, 50);
         last_release_ms = now_ms;
       }
       previousMillis = millis();

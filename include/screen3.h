@@ -314,7 +314,6 @@ void Wifi_screen() {
 
     String pincode = NVS.getString ("pincode");
     if (pin_UNLOCK == pincode) {
-      server.send(200, " text/html", "OK");
       deserializeJson(jsondata, server.arg(0));
       int id = jsondata["id"];
 
@@ -335,6 +334,10 @@ void Wifi_screen() {
       NVS.erase(otpUser);
       NVS.erase(otpDigits);
       NVS.erase(String(id));
+
+      // Reply only after the entry has been removed, so the client never
+      // sees a success for a delete that did not happen.
+      server.send(200, " text/html", "OK");
     } else {
       server.send(200, " text/html", "LOCKED");
     }
@@ -505,6 +508,15 @@ void Wifi_screen() {
   server.on("/timezone", HTTP_POST, []() {
     previousMillis = millis();
     jsondata.clear();
+
+    // Same PIN check as the other write endpoints; the GET handler stays
+    // open so the page can read the timezone before unlocking.
+    String pincode = NVS.getString ("pincode");
+    if (pin_UNLOCK != pincode) {
+      server.send(200, "text/html", "LOCKED");
+      return;
+    }
+
     deserializeJson(jsondata, server.arg(0)); 
 
     // set timezone_h and timezone_m from the float value
@@ -554,6 +566,50 @@ void Wifi_screen() {
         json_counter++;
       }
     }
+
+    String  dataout = "";
+    serializeJson(jsondata, dataout);
+
+    server.send(200, "text/html", dataout);
+  });
+
+  //----------------getCodes--------------              get the current TOTP codes
+  // Codes are generated on the device: the secrets never leave it, the WebUI
+  // only receives the codes for the current 30 second window plus the number
+  // of seconds left in that window.
+  server.on("/getCodes", HTTP_GET, []() {
+    previousMillis = millis();
+    String  pincode = NVS.getString ("pincode");
+    if (pin_UNLOCK != pincode) {
+      server.send(200, "text/html", "LOCKED");
+      return;
+    }
+
+    jsondata.clear();
+    int  json_counter = 0;
+    JsonArray data = jsondata["codes"].to<JsonArray>();
+
+    for (int  i = 0; i < maxOTPs; i++) {
+      String  otpBool = "B" + String ((i + 1));
+      if (NVS.getInt (otpBool) != 1) {
+        continue;
+      }
+
+      size_t hmac_length = NVS.getBlobSize(String(i + 1));
+      if (hmac_length == 0) {
+        continue;
+      }
+
+      uint8_t hmacKey[hmac_length] = {};
+      NVS.getBlob(String(i + 1), hmacKey, hmac_length);
+      String code = generateTOTP(hmacKey, hmac_length, now(), getOTPDigits(i + 1));
+
+      jsondata["codes"][json_counter]["id"] = (i + 1);
+      jsondata["codes"][json_counter]["code"] = code;
+      json_counter++;
+    }
+
+    jsondata["remaining"] = 30 - (second() % 30);
 
     String  dataout = "";
     serializeJson(jsondata, dataout);
@@ -651,6 +707,14 @@ server.on("/setWifi", HTTP_POST, []() {
   server.on("/setScreen", HTTP_POST, []() {
     previousMillis = millis();
     jsondata.clear();
+
+    // Same PIN check as the other write endpoints.
+    String pincode = NVS.getString ("pincode");
+    if (pin_UNLOCK != pincode) {
+      server.send(200, "text/html", "LOCKED");
+      return;
+    }
+
     deserializeJson(jsondata, server.arg(0));
 
     if (!jsondata["brightness"].isNull()) {
@@ -676,18 +740,23 @@ server.on("/setWifi", HTTP_POST, []() {
       timeout_ScreenOn = _timeout;
       NVS.setInt("timeout_ScreenOn", _timeout);
       Serial.println("timeout_ScreenOn: " + String(timeout_ScreenOn));
+    }
 
-      if (!jsondata["bg_color"].isNull()) {
+    // Colors are independent of the timeout: previously they were nested
+    // inside the timeout block and silently ignored when no timeout was sent.
+    if (!jsondata["bg_color"].isNull()) {
       bg_color = jsondata["bg_color"];
       NVS.setInt("bg_color", bg_color);
-      }
+    }
 
     if (!jsondata["txt_color"].isNull()) {
       txt_color = jsondata["txt_color"];
       NVS.setInt("txt_color", txt_color);
     }
-    M5.Lcd.fillScreen(bg_color);
-    M5.Lcd.setTextColor(txt_color, bg_color);
+
+    if (!jsondata["bg_color"].isNull() || !jsondata["txt_color"].isNull()) {
+      M5.Lcd.fillScreen(bg_color);
+      M5.Lcd.setTextColor(txt_color, bg_color);
     }
 
     server.send(200, "text/html", "OK");

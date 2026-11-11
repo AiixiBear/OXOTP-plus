@@ -8,13 +8,13 @@ void typeCodeOverBLE(const String& code) {
 
   if (!bleHidConnected()) {
     M5.Lcd.print("NO BT HOST");
-    M5.Speaker.tone(2000, 250);
+// M5.Speaker.tone(2000, 250);
     delay(BLE_NOTICE_MS);
     return;
   }
 
   M5.Lcd.print("TYPING...");
-  M5.Speaker.tone(5000, 100);
+// M5.Speaker.tone(5000, 100);
   bleHidTypeCode(code);
   delay(BLE_NOTICE_MS);
 }
@@ -94,7 +94,7 @@ void OTP_screen() {
           (NVS.getInt(otpBool) == 1) ? search = false : false;
           firstloadScreen = true;
         }
-        M5.Speaker.tone(7000, 100);
+// M5.Speaker.tone(7000, 100);
       }
 
       size_t hmac_length = NVS.getBlobSize(String(pointer));
