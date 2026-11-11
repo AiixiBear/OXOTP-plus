@@ -63,6 +63,10 @@ Further work done by [@KonradIT](https://github.com/KonradIT) to add:
 
 ![3](./img/3.png)
 
+### Forgot the device PIN?
+
+If a PIN is set, the device asks for it on boot (button B enters 7, button A enters 8). There is no way to recover a forgotten PIN: the WebUI cannot reach the device either, because the WiFi configurator only starts after the device is unlocked. The only way back in is to erase the flash and re-flash the firmware (e.g. `esptool.py erase_flash`, then upload the firmware again), which also wipes all stored OTP secrets from NVS. Back up your secrets (even on paper) before setting a PIN.
+
 ## HOW TO BUILD (PlatformIO - Recommended):
 
  - Clone the repo
@@ -78,11 +82,29 @@ All dependencies are automatically managed by PlatformIO.
 
 ### Modifying the Web Interface:
 
-If you modify `web/index.html`, regenerate the C headers:
+The WebUI is styled with [Tailwind CSS v4](https://tailwindcss.com/).
+The source of truth is `web/input.css`; the compiled stylesheet is
+`web/tailwind.min.css`, which is gzipped into `include/css.h` by the
+header generator and served at `/css/tailwind.min.css`.
+
+The Tailwind standalone CLI is a single binary (no Node needed).
+Download it into `tools/` (it is git-ignored, do not commit it):
 
 ```bash
+curl -L -o tools/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64
+chmod +x tools/tailwindcss
+```
+
+After changing `web/index.html` or `web/input.css`, rebuild the CSS
+and regenerate the C headers:
+
+```bash
+./tools/tailwindcss -i web/input.css -o web/tailwind.min.css --minify
 go run tools/generate_headers.go
 ```
+
+Then rebuild the firmware as usual. (Tailwind v4.3.5 was used for the
+current stylesheet.)
 
 
 ## DEVELOPED FOR DAILY USE:

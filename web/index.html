@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -8,409 +8,194 @@
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="shortcut icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/favicon.png">
-  <link rel="stylesheet" href="css/pico.violet.min.css">
-
-  <style>
-    nav[aria-label="breadcrumb"] ul {
-      width: 100%;
-    }
-
-    nav[aria-label="breadcrumb"] ul li {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    nav[aria-label="breadcrumb"] ul li:not(:last-child)::after {
-      content: "";
-    }
-
-    [role="tab"] {
-      border-bottom: 5px purple solid;
-      padding-block: 0.6rem;
-      margin: auto;
-      color: var(--secondary);
-      background: rgba(121, 255, 251, 0.071);
-      transition: all 0.25s;
-      border-radius: 20px;
-      margin-top: 3px;
-      margin-bottom: 3px;
-    }
-
-    [role="tab"][aria-current] {
-      color: aliceblue;
-      border-color: rgb(139, 224, 197);
-      background-color: rgb(33, 166, 146);
-    }
-
-    [role="tab"]:hover {
-      color: aliceblue;
-      border-color: rgb(37, 233, 213);
-      background-color: rgb(7, 69, 60);
-    }
-
-    section {
-      margin: calc(var(--block-spacing-vertical) * 0.5) 0;
-    }
-
-    section [role="tabpanel"] {
-      animation-duration: 0.3s;
-      animation-fill-mode: both;
-      animation-name: slideIn;
-    }
-
-    @keyframes slideIn {
-      0% {
-        transform: translateY(1rem);
-        opacity: 0;
-      }
-      100% {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
-    #otpList {
-      padding: 0;
-    }
-
-    .otpItem {
-      margin-bottom: 10px;
-      padding: 10px;
-      border: 2px solid cadetblue;
-      box-shadow: 0 0 10px 0 cadetblue;
-      border-radius: 5px;
-    }
-
-    .deleteButton {
-      margin-top: -3px;
-      margin-right: -20px;
-      float: right;
-      background-color: #ff6666;
-      border: none;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 10px;
-      box-shadow: 0 0.6px 3px 0 purple;
-      cursor: pointer;
-    }
-
-    .unixButton {
-      margin-top: 0.5rem;
-      margin-bottom: 2.5rem;
-      background-color: rgba(255, 255, 255, 0.047);
-      border: 2px solid rgb(203, 158, 244);
-      padding: 5px 10px;
-      border-radius: 6px;
-      color: purple;
-      margin: auto;
-    }
-
-    .unixButton:hover {
-      background-color: blueviolet;
-      color: white;
-    }
-
-    .resetButton {
-      margin-top: 0.5rem;
-      margin-bottom: 2.5rem;
-      background-color: rgba(255, 255, 255, 0.047);
-      border: 2px solid rgb(203, 158, 244);
-      padding: 5px 10px;
-      border-radius: 6px;
-      color: crimson;
-      margin: auto;
-      display: block;
-    }
-
-    .resetButton:hover {
-      background-color: red;
-      color: white;
-    }
-
-    .applyWifiButton {
-      margin-top: 2px;
-      background-color: rgba(255, 255, 255, 0.047);
-      border: 2px solid rgb(203, 158, 244);
-      padding: 10px 40%;
-      border-radius: 6px;
-      color: purple;
-      display: block;
-      margin: auto;
-    }
-
-    .applyWifiButton:hover {
-      background-color: purple;
-      color: white;
-    }
-
-    #file-input {
-      display: inline-block;
-      padding: 10px 20px;
-      background-color: cadetblue;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    #file-input:hover {
-      background-color: purple;
-    }
-
-    #file-input:active {
-      background-color: #004080;
-    }
-
-    .configTitle {
-      text-align: center;
-      margin-top: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .parseBox {
-      margin-bottom: 1.5rem;
-      padding: 1rem;
-      border: 2px solid cadetblue;
-      border-radius: 8px;
-      background: rgba(95, 158, 160, 0.1);
-    }
-
-    .parseBox input[type="text"] {
-      transition: border-color 0.3s ease;
-    }
-
-    .parseBox small {
-      display: block;
-      margin-top: 0.5rem;
-      color: #888;
-    }
-
-    .quit-btn {
-      border-bottom: 5px #ff6666 solid;
-      padding-block: 0.6rem;
-      margin: auto;
-      color: #ff6666;
-      background: rgba(255, 102, 102, 0.1);
-      transition: all 0.25s;
-      border-radius: 20px;
-      margin-top: 3px;
-      margin-bottom: 3px;
-    }
-
-    .quit-btn:hover {
-      color: white;
-      border-color: #ff4444;
-      background-color: #ff4444;
-    }
-
-    /* Toast Notifications */
-    .toast-container {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      pointer-events: none;
-    }
-
-    .toast {
-      background: rgba(33, 33, 33, 0.95);
-      color: #fff;
-      padding: 14px 24px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      border-left: 4px solid var(--primary);
-      max-width: 90vw;
-      min-width: 280px;
-      animation: toastSlideIn 0.3s ease, toastFadeOut 0.3s ease forwards;
-      animation-delay: 0s, var(--toast-duration, 3s);
-      pointer-events: auto;
-      white-space: pre-line;
-    }
-
-    .toast.success {
-      border-left-color: #4CAF50;
-    }
-
-    .toast.error {
-      border-left-color: #ff6666;
-    }
-
-    .toast.warning {
-      border-left-color: #ff9800;
-    }
-
-    .toast.info {
-      border-left-color: #2196F3;
-    }
-
-    @keyframes toastSlideIn {
-      from {
-        transform: translateY(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
-    @keyframes toastFadeOut {
-      to {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="css/tailwind.min.css">
 </head>
-<body>
+<body class="bg-surface text-slate-200 antialiased">
   <!-- Toast notification container -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <header class="container">
-    <nav aria-label="breadcrumb">
-      <h4 style="margin-right: 0.2rem; min-width: 40px;">OXOTP+</h4>
-      <ul>
-        <li><button type="button" role="tab">Overview</button></li>
-        <li><button type="button" role="tab">Config</button></li>
-        <li><button type="button" role="tab">+</button></li>
-        <li><button type="button" role="tab">Info</button></li>
-        <li><button type="button" id="quitBtn" class="quit-btn">Quit</button></li>
-      </ul>
+  <!-- Sticky header: title + device status, then the segmented tabs. -->
+  <header class="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
+    <div class="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
+      <h1 class="text-lg font-bold tracking-tight">OXOTP+</h1>
+      <div class="flex items-center gap-3">
+        <span id="deviceStatus" class="hidden text-xs tabular-nums text-slate-400"></span>
+        <button type="button" id="quitBtn" class="cursor-pointer text-xs font-medium text-rose-400/80 transition-colors hover:text-rose-400">Quit</button>
+      </div>
+    </div>
+    <nav class="mx-auto w-full max-w-3xl px-4 pb-3" aria-label="Sections">
+      <div class="flex rounded-full bg-surface-2 p-1" role="tablist">
+        <button type="button" role="tab">Manage</button>
+        <button type="button" role="tab">Settings</button>
+        <button type="button" role="tab">Info</button>
+      </div>
     </nav>
   </header>
 
-  <main class="container" style="max-width: 800px;">
-    <section>
-      <!-- Overview Panel -->
+  <main class="mx-auto w-full max-w-3xl px-4 pb-8">
+    <!-- PIN lock / set-PIN panel: shown when the device is locked, or to
+         offer setting a PIN when none is set yet. Hidden once unlocked. -->
+    <div id="lockPanel" class="lockPanel" hidden>
+      <div id="unlockBox" hidden>
+        <h3 class="mb-2 text-lg font-semibold">Device Locked</h3>
+        <p class="mb-3 text-slate-400">Enter the device PIN to unlock the configurator.</p>
+        <label for="pinInput" class="flabel">PIN:</label>
+        <input type="password" id="pinInput" autocomplete="off" class="field">
+        <button type="button" id="unlockButton" class="btn-primary mx-auto mt-3 w-auto px-5">Unlock</button>
+      </div>
+      <div id="setPinBox" hidden>
+        <h3 class="mb-2 text-lg font-semibold">Set a Device PIN (optional)</h3>
+        <p class="mb-3 text-slate-400">Setting a PIN locks the OTP list and settings behind it. The PIN is sent to the device only when you set or enter it, and is never stored in the browser. The PIN can only use the digits 7 and 8 (4-12 digits): on the device, button B enters 7 and button A enters 8.</p>
+        <label for="newPinInput" class="flabel">New PIN:</label>
+        <input type="password" id="newPinInput" autocomplete="new-password" inputmode="numeric" class="field">
+        <label for="confirmPinInput" class="flabel">Confirm PIN:</label>
+        <input type="password" id="confirmPinInput" autocomplete="new-password" inputmode="numeric" class="field">
+        <button type="button" id="setPinButton" class="btn-primary mx-auto mt-3 w-auto px-5">Set PIN</button>
+        <button type="button" id="dismissSetPinButton" class="btn-ghost mt-3">Not now</button>
+      </div>
+    </div>
+
+    <section id="appSection" class="my-4">
+      <!-- Manage Panel: add accounts and the compact account list. -->
       <div role="tabpanel">
-        <h3>OTP List</h3>
-        <ul id="otpList"></ul>
-      </div>
-
-      <!-- Config Panel -->
-      <div role="tabpanel" hidden>
-        <h4>WiFi Configuration</h4>
-        <hr>
-
-        <label for="wifiModeSelect">WiFi Mode:</label>
-        <select id="wifiModeSelect">
-          <option value="AP">AP</option>
-          <option value="STA">Host</option>
-        </select>
-
-        <label for="ssidInput">SSID:</label>
-        <input type="text" id="ssidInput">
-
-        <label for="passwordInput">Password:</label>
-        <input type="password" id="passwordInput">
-
-        <div id="passwordModeDiv">
-          <label for="passwordModeSelect">Password Mode:</label>
-          <select id="passwordModeSelect">
-            <option value="0">Random</option>
-            <option value="1">Fixed</option>
-          </select>
-        </div>
-
-        <button type="button" id="applyWifiButton" class="applyWifiButton">Apply</button>
-
-        <h4 class="configTitle">Time</h4>
-        <hr style="margin-top: 4px;">
-
-        <label for="timezone"><strong>Timezone (GMT)</strong></label>
-        <input type="number" id="timezone" name="timezone" min="-12" max="14" step="0.5" value="0">
-        <button type="button" id="unixButton" class="unixButton">Sync Time</button>
-
-        <h4 class="configTitle">Screen</h4>
-        <hr style="margin-top: 4px;">
-
-        <label for="screenTimeout"><strong>Timeout (s)</strong></label>
-        <input type="number" id="screenTimeout" name="screenTimeout" min="0" max="9999" step="5" value="0">
-
-        <label for="brightness"><strong>Brightness</strong></label>
-        <input type="range" id="brightness" name="brightness" min="15" max="255" value="100">
-
-        <label for="bg_color"><strong>Background Color</strong></label>
-        <input type="color" id="bg_color" name="bg_color" value="#000000">
-
-        <label for="txt_color"><strong>Text Color</strong></label>
-        <input type="color" id="txt_color" name="txt_color" value="#ffffff">
-
-        <button type="button" id="setScreenSettings" class="unixButton">Set Screen Settings</button>
-
-        <hr style="margin-top: 3rem;">
-        <button type="button" id="factoryReset" class="resetButton">Factory Reset</button>
-      </div>
-
-      <!-- Add OTP Panel -->
-      <div role="tabpanel" hidden>
-        <h3>Add OTP</h3>
-
-        <!-- otpauth:// URI Parser -->
+        <!-- Add zone: pasting an otpauth:// URI is the primary way to add. -->
         <div class="parseBox">
-          <label for="otpauthUri"><strong>&#128279; Paste otpauth:// URI:</strong></label>
-          <input type="text" id="otpauthUri" name="otpauthUri" placeholder="otpauth://totp/Service:user@email.com?secret=XXXX&amp;issuer=Service" style="width: 100%; margin-top: 0.5rem;">
-          <button type="button" id="parseUriButton" class="applyWifiButton" style="margin-top: 0.5rem; padding: 8px 20px;">Parse &amp; Fill Form</button>
-          <small>Supports otpauth://totp/ URIs from authenticator apps (Google Authenticator, Authy, etc.)</small>
+          <h3 class="mb-1 text-base font-semibold">Add an account</h3>
+          <p class="mb-3 text-sm text-slate-400">Paste an otpauth:// URI from your authenticator app, or fill in the form below.</p>
+          <label for="otpauthUri" class="flabel mt-0"><strong>Paste otpauth:// URI:</strong></label>
+          <input type="text" id="otpauthUri" name="otpauthUri" placeholder="otpauth://totp/Service:user@email.com?secret=XXXX&amp;issuer=Service" class="field">
+          <button type="button" id="parseUriButton" class="btn-primary mt-3">Parse &amp; Fill Form</button>
+          <small class="mt-2 block text-sm text-slate-500">Supports otpauth://totp/ URIs from authenticator apps (Google Authenticator, Authy, etc.)</small>
         </div>
 
-        <hr style="margin: 1.5rem 0; border-color: rgba(255, 255, 255, 0.1);">
-        <h4 style="margin-bottom: 1rem;">Manual Entry</h4>
+        <!-- Manual entry, visually secondary. -->
+        <div class="card">
+          <h4 class="cardTitle">Manual entry</h4>
+          <form id="addForm" action="/add" method="post">
+            <label for="id" class="flabel">ID (1-30):</label>
+            <input type="number" id="id" name="id" min="1" max="30" class="field">
 
-        <form id="addForm" action="/add" method="post">
-          <label for="id">ID (1-30):</label>
-          <input type="number" id="id" name="id" min="1" max="30">
+            <label for="key" class="flabel">Secret Key (Base32):</label>
+            <input type="text" id="key" name="key" placeholder="e.g. JBSWY3DPEHPK3PXP" class="field">
 
-          <label for="key">Secret Key (Base32):</label>
-          <input type="text" id="key" name="key" placeholder="e.g. JBSWY3DPEHPK3PXP">
+            <label for="label" class="flabel">Label (Service Name):</label>
+            <input type="text" id="label" name="label" placeholder="e.g. GitHub, Google, DEGIRO" class="field">
 
-          <label for="label">Label (Service Name):</label>
-          <input type="text" id="label" name="label" placeholder="e.g. GitHub, Google, DEGIRO">
+            <label for="user" class="flabel">User (Account):</label>
+            <input type="text" id="user" name="user" placeholder="e.g. user@email.com" class="field">
 
-          <label for="user">User (Account):</label>
-          <input type="text" id="user" name="user" placeholder="e.g. user@email.com">
+            <label for="digits" class="flabel">Code Length (digits):</label>
+            <select id="digits" name="digits" class="field">
+              <option value="6" selected>6 digits</option>
+              <option value="8">8 digits</option>
+            </select>
 
-          <label for="digits">Code Length (digits):</label>
-          <select id="digits" name="digits">
-            <option value="6" selected>6 digits</option>
-            <option value="8">8 digits</option>
+            <input type="submit" class="btn-primary mt-4" value="Add OTP">
+          </form>
+        </div>
+
+        <!-- Compact account list. Codes are a supporting detail here:
+             the device screen is where codes are read. -->
+        <div class="mt-6">
+          <div class="mb-1 flex items-baseline justify-between">
+            <h3 class="text-base font-semibold">Accounts</h3>
+            <span id="otpCount" class="text-xs text-slate-500"></span>
+          </div>
+          <p class="mb-3 text-sm text-slate-400">Tap a row to copy its code.</p>
+          <ul id="otpList" class="list-none p-0"></ul>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div role="tabpanel" hidden>
+        <div class="card">
+          <h4 class="cardTitle">WiFi</h4>
+          <label for="wifiModeSelect" class="flabel">WiFi Mode:</label>
+          <select id="wifiModeSelect" class="field">
+            <option value="AP">AP</option>
+            <option value="STA">Host</option>
           </select>
 
-          <input type="submit" class="applyWifiButton" value="Add OTP">
-        </form>
+          <label for="ssidInput" class="flabel">SSID:</label>
+          <input type="text" id="ssidInput" class="field">
+
+          <label for="passwordInput" class="flabel">Password:</label>
+          <input type="password" id="passwordInput" class="field">
+
+          <div id="passwordModeDiv">
+            <label for="passwordModeSelect" class="flabel">Password Mode:</label>
+            <select id="passwordModeSelect" class="field">
+              <option value="0">Random</option>
+              <option value="1">Fixed</option>
+            </select>
+          </div>
+
+          <button type="button" id="applyWifiButton" class="btn-primary mt-4">Apply</button>
+        </div>
+
+        <div class="card">
+          <h4 class="cardTitle">Time</h4>
+          <label for="timezone" class="flabel">Timezone (GMT)</label>
+          <input type="number" id="timezone" name="timezone" min="-12" max="14" step="0.5" value="0" class="field">
+          <button type="button" id="unixButton" class="btn-primary mt-3">Sync Time</button>
+        </div>
+
+        <div class="card">
+          <h4 class="cardTitle">Screen</h4>
+          <label for="screenTimeout" class="flabel">Timeout (s)</label>
+          <input type="number" id="screenTimeout" name="screenTimeout" min="0" max="9999" step="5" value="0" class="field">
+
+          <label for="brightness" class="flabel">Brightness</label>
+          <input type="range" id="brightness" name="brightness" min="15" max="255" value="100" class="mt-1 block w-full accent-brand-500">
+
+          <label for="bg_color" class="flabel">Background Color</label>
+          <input type="color" id="bg_color" name="bg_color" value="#000000" class="field h-10 cursor-pointer p-1">
+
+          <label for="txt_color" class="flabel">Text Color</label>
+          <input type="color" id="txt_color" name="txt_color" value="#ffffff" class="field h-10 cursor-pointer p-1">
+
+          <button type="button" id="setScreenSettings" class="btn-primary mt-3">Set Screen Settings</button>
+        </div>
+
+        <div class="card">
+          <h4 class="cardTitle">Device PIN</h4>
+          <p class="mb-3 text-sm text-slate-400">Lock the OTP list and settings behind a PIN.</p>
+          <button type="button" id="showSetPinButton" class="btn-ghost">Set / Change PIN</button>
+        </div>
+
+        <div class="card">
+          <h4 class="cardTitle text-rose-400">Danger zone</h4>
+          <p class="mb-3 text-sm text-slate-400">Erase all stored accounts and settings.</p>
+          <button type="button" id="factoryReset" class="btn-danger">Factory Reset</button>
+        </div>
       </div>
 
       <!-- Info Panel -->
       <div role="tabpanel" hidden>
-        <h4><em>OXOTP+</em></h4>
-        <p>
+        <div class="card">
+        <h4 class="cardTitle"><em>OXOTP+</em></h4>
+        <p class="mb-2 text-sm text-slate-400">
           Copyright &copy; 2024 Alex Licata <strong>@xick</strong><br>
           Copyright &copy; 2020 Imad Mezghache
         </p>
-        <p>Current version <strong>1.2</strong></p>
+        <p class="mb-4 text-sm">Current version <strong>1.2</strong></p>
 
-        <h4>Update Firmware</h4>
-        <p>Upload the OTA firmware file to update the device.</p>
+        <h4 class="mb-2 text-base font-semibold">Update Firmware</h4>
+        <p class="mb-3 text-sm text-slate-400">Upload the OTA firmware file to update the device.</p>
 
         <form method="POST" action="#" enctype="multipart/form-data" id="upload_form">
-          <input type="file" name="update" id="file" style="display: none;">
+          <input type="file" name="update" id="file" class="hidden">
           <label id="file-input" for="file">Choose file...</label>
-          <input type="submit" class="applyWifiButton" value="Update" id="update-button" style="display: none;">
-          <br><br>
-          <div id="prg"></div>
-          <br>
-          <div id="prgbar"><div id="bar"></div></div>
+          <input type="submit" class="btn-primary mt-4 hidden" value="Update" id="update-button">
+          <div id="prg" class="mt-4"></div>
+          <div id="prgbar" class="mt-4"><div id="bar"></div></div>
         </form>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="container">
+  <footer class="mx-auto w-full max-w-3xl px-4 pb-6 text-center text-sm text-slate-500">
     <p>OXOTP+ 2024</p>
   </footer>
 
@@ -432,6 +217,48 @@
       setTimeout(() => {
         toast.remove();
       }, duration + 300);
+    }
+
+    // --- PLAIN-TEXT RESULT HANDLING ---
+    // Write endpoints reply with plain text ("OK", "LOCKED",
+    // "ALREADY EXIST", "INVALID"). Only "OK" is a success; anything else
+    // must surface as an error toast, never as a success.
+    function toastForResult(message, successMessage) {
+      const text = (message || '').trim();
+      if (text === 'OK') {
+        showToast(successMessage || 'OK', 'success');
+        return true;
+      }
+      if (text === 'LOCKED') {
+        showToast('Device is locked. Enter the PIN to unlock.', 'error');
+        return false;
+      }
+      if (text === 'ALREADY EXIST') {
+        showToast('An OTP with this ID already exists.', 'error');
+        return false;
+      }
+      if (text === 'INVALID') {
+        showToast('Invalid value.', 'error');
+        return false;
+      }
+      if (text) {
+        showToast(text, 'info');
+        return false;
+      }
+      return false;
+    }
+
+    // JSON endpoints reply with plain text "LOCKED" instead of JSON when
+    // the device is locked, so read the body as text first and only parse
+    // it when it is not LOCKED. Returns { locked: true } or the parsed
+    // JSON object; a malformed body still rejects to the caller's catch.
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      const text = await response.text();
+      if (text.trim() === 'LOCKED') {
+        return { locked: true };
+      }
+      return JSON.parse(text);
     }
 
     // --- TAB SELECTION LOGIC ---
@@ -462,13 +289,209 @@
       });
     });
 
+    // --- PIN LOCK LOGIC ---
+    // The PIN is only ever sent to the device in the /UNLOCK and /set_pin
+    // requests below. It is never written to localStorage or any other
+    // browser storage, and the input fields are cleared after each attempt.
+    function showLockPanel() {
+      document.getElementById('appSection').hidden = true;
+      document.getElementById('lockPanel').hidden = false;
+      document.getElementById('unlockBox').hidden = false;
+      document.getElementById('setPinBox').hidden = true;
+    }
+
+    function showSetPinBox() {
+      document.getElementById('lockPanel').hidden = false;
+      document.getElementById('unlockBox').hidden = true;
+      document.getElementById('setPinBox').hidden = false;
+    }
+
+    function hideLockPanel() {
+      document.getElementById('lockPanel').hidden = true;
+      document.getElementById('appSection').hidden = false;
+    }
+
+    // Load the OTP list and the settings. Only called once the device is
+    // known to be unlocked (or has no PIN), so locked endpoints are not
+    // hit with requests that would come back as LOCKED.
+    async function loadAll() {
+      syncTime(false);
+      loadScreenSettings();
+      loadTimezone();
+      loadWifiSettings();
+      loadDeviceStatus();
+      await loadOtpList();
+      await loadCodes();
+    }
+
+    // Battery status for the sticky header. /getBattery is a plain
+    // JSON endpoint; if it fails or returns nothing usable, the
+    // status stays hidden instead of showing a wrong value.
+    function loadDeviceStatus() {
+      fetchJson(`${baseUrl}/getBattery`)
+        .then(data => {
+          if (data.locked || typeof data.percentage !== 'number') {
+            return;
+          }
+          const statusEl = document.getElementById('deviceStatus');
+          statusEl.textContent = 'Batt ' + Math.round(data.percentage) + '%' + (data.charging ? ' CHG' : '');
+          statusEl.classList.remove('hidden');
+        })
+        .catch(error => console.error('Error fetching battery status:', error));
+    }
+
+    // On load: /check_pin_secure reports whether a PIN exists at all
+    // ("OK" = set, "NOT" = none), /check_pin_LOCK reports whether the
+    // device is currently unlocked ("UNLOCKED" / "LOCKED").
+    async function checkPinStatus() {
+      try {
+        const secureResponse = await fetch(`${baseUrl}/check_pin_secure`, {
+          method: 'POST'
+        });
+        const hasPin = (await secureResponse.text()).trim() === 'OK';
+
+        if (!hasPin) {
+          // No PIN set: the configurator is open, but offer setting one.
+          showSetPinBox();
+          await loadAll();
+          return;
+        }
+
+        const lockResponse = await fetch(`${baseUrl}/check_pin_LOCK`, {
+          method: 'POST'
+        });
+        const lockText = (await lockResponse.text()).trim();
+
+        if (lockText === 'UNLOCKED') {
+          hideLockPanel();
+          await loadAll();
+          return;
+        }
+
+        showLockPanel();
+      } catch (error) {
+        console.error('Error checking PIN status:', error);
+        showToast('Could not reach the device to check the PIN status.', 'error');
+        // Fall back to loading the page instead of leaving a blank screen;
+        // locked endpoints will report LOCKED through their own handlers.
+        await loadAll();
+      }
+    }
+
+    document.getElementById('unlockButton').addEventListener('click', async function() {
+      const pinInput = document.getElementById('pinInput');
+      const pin = pinInput.value;
+
+      if (!pin) {
+        showToast('Please enter the PIN.', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}/UNLOCK`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ pin: pin })
+        });
+        const text = (await response.text()).trim();
+        pinInput.value = '';
+
+        if (text === 'OK') {
+          showToast('Unlocked.', 'success');
+          hideLockPanel();
+          await loadAll();
+        } else {
+          showToast('Incorrect PIN.', 'error');
+        }
+      } catch (error) {
+        console.error('Error unlocking device:', error);
+        showToast('Could not reach the device.', 'error');
+      }
+    });
+
+    document.getElementById('pinInput').addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        document.getElementById('unlockButton').click();
+      }
+    });
+
+    document.getElementById('setPinButton').addEventListener('click', async function() {
+      const newPinInput = document.getElementById('newPinInput');
+      const confirmPinInput = document.getElementById('confirmPinInput');
+      const newPin = newPinInput.value;
+      const confirmPin = confirmPinInput.value;
+
+      if (!newPin) {
+        showToast('Please enter a new PIN.', 'warning');
+        return;
+      }
+
+      // The device lock screen only has two buttons (BtnB = 7, BtnA = 8),
+      // so a PIN with any other digit could never be entered on the device.
+      if (!/^[78]{4,12}$/.test(newPin)) {
+        showToast('PIN must be 4-12 digits using only 7 and 8 (B = 7, A = 8 on the device).', 'error');
+        return;
+      }
+
+      if (newPin !== confirmPin) {
+        showToast('PINs do not match.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}/set_pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ newpin: newPin })
+        });
+        const text = (await response.text()).trim();
+        newPinInput.value = '';
+        confirmPinInput.value = '';
+
+        if (text === 'OK') {
+          showToast('PIN set.', 'success');
+          document.getElementById('lockPanel').hidden = true;
+        } else if (text === 'INVALID PIN') {
+          showToast('PIN must be 4-12 digits using only 7 and 8 (B = 7, A = 8 on the device).', 'error');
+        } else if (text === 'LOCKED') {
+          showToast('Device is locked. Unlock it first to change the PIN.', 'error');
+        } else {
+          showToast(text, 'error');
+        }
+      } catch (error) {
+        console.error('Error setting PIN:', error);
+        showToast('Could not reach the device.', 'error');
+      }
+    });
+
+    document.getElementById('dismissSetPinButton').addEventListener('click', function() {
+      document.getElementById('lockPanel').hidden = true;
+    });
+
+    document.getElementById('showSetPinButton').addEventListener('click', function() {
+      showSetPinBox();
+      window.scrollTo(0, 0);
+    });
+
     // --- ADD OTP FORM SUBMISSION LOGIC ---
     document.getElementById('addForm').addEventListener('submit', function(event) {
       event.preventDefault();
 
       const id = document.getElementById('id').value;
       const keyString = document.getElementById('key').value;
-      const keyArray = base32Decode(keyString);
+      const base32Error = validateBase32Secret(keyString);
+      if (base32Error) {
+        showToast(base32Error, 'error');
+        return;
+      }
+      const normalizedKey = normalizeBase32Secret(keyString);
+      document.getElementById('key').value = normalizedKey;
+      const keyArray = base32Decode(normalizedKey);
       const hmacLength = keyArray.length;
       const label = document.getElementById('label').value;
       const user = document.getElementById('user').value;
@@ -492,8 +515,9 @@
       })
       .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
-        setTimeout(() => location.reload(), 1500);
+        if (toastForResult(message, 'OTP added.')) {
+          setTimeout(() => location.reload(), 1500);
+        }
       })
       .catch(error => {
         console.error('There was a problem with the fetch operation:', error);
@@ -513,8 +537,8 @@
         body: JSON.stringify(payload)
       })
       .then(response => response.text())
-      .then(data => {
-        console.log(data);
+      .then(message => {
+        toastForResult(message, 'Timezone saved.');
       })
       .catch(error => {
         console.error('There was a problem with the fetch operation:', error);
@@ -541,7 +565,7 @@
       .then(message => {
         console.log('Time synced:', message);
         if (showNotification) {
-          showToast(message, 'success');
+          toastForResult(message, 'Time synced.');
         }
       })
       .catch(error => {
@@ -549,8 +573,7 @@
       });
     }
 
-    // Auto-sync time on page load
-    syncTime(false);
+    // Time is synced on load by loadAll(), after the PIN check has passed.
 
     // --- SCREEN SETTINGS LOGIC ---
     function convertToRGB888(color) {
@@ -599,7 +622,7 @@
       })
       .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
+        toastForResult(message, 'Screen settings saved.');
       })
       .catch(error => {
         console.error('There was a problem with the fetch operation:', error);
@@ -607,34 +630,65 @@
     });
 
     // Fetch initial screen values
-    fetch(`${baseUrl}/getScreen`)
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('screenTimeout').value = data.timeout;
-        document.getElementById('brightness').value = data.brightness;
-        document.getElementById('bg_color').value = convertToRGB888(data.bg_color);
-        document.getElementById('txt_color').value = convertToRGB888(data.txt_color);
-      })
-      .catch(error => console.error('Error fetching initial values:', error));
+    function loadScreenSettings() {
+      fetchJson(`${baseUrl}/getScreen`)
+        .then(data => {
+          if (data.locked) {
+            return;
+          }
+          document.getElementById('screenTimeout').value = data.timeout;
+          document.getElementById('brightness').value = data.brightness;
+          document.getElementById('bg_color').value = convertToRGB888(data.bg_color);
+          document.getElementById('txt_color').value = convertToRGB888(data.txt_color);
+        })
+        .catch(error => console.error('Error fetching initial values:', error));
+    }
 
     // Fetch timezone from server
-    fetch(`${baseUrl}/timezone`)
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('timezone').value = data.timezone;
-      })
-      .catch(error => console.error('Error fetching initial values:', error));
+    function loadTimezone() {
+      fetchJson(`${baseUrl}/timezone`)
+        .then(data => {
+          if (data.locked) {
+            return;
+          }
+          document.getElementById('timezone').value = data.timezone;
+        })
+        .catch(error => console.error('Error fetching initial values:', error));
+    }
 
     // --- BASE32 DECODING LOGIC ---
+    // Drop whitespace and padding, uppercase. Used for both manual entry
+    // and secrets parsed out of otpauth:// URIs.
+    function normalizeBase32Secret(secret) {
+      return secret.replace(/\s/g, '').replace(/=/g, '').toUpperCase();
+    }
+
+    // Returns an error message when the secret cannot be used as Base32,
+    // or null when it is valid. Invalid characters used to be silently
+    // decoded into a wrong key; they are now rejected up front.
+    function validateBase32Secret(secret) {
+      const cleaned = normalizeBase32Secret(secret);
+      if (!cleaned) {
+        return 'Secret key is empty.';
+      }
+      if (/[^A-Z2-7]/.test(cleaned)) {
+        return 'Secret key contains invalid Base32 characters. Use only A-Z and 2-7.';
+      }
+      return null;
+    }
+
     function base32Decode(base32String) {
       const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
       let bits = '';
       const bytes = [];
 
-      base32String = base32String.replace(/=/g, '');
+      base32String = normalizeBase32Secret(base32String);
 
       for (let i = 0; i < base32String.length; i++) {
-        const value = base32Chars.indexOf(base32String[i].toUpperCase());
+        const value = base32Chars.indexOf(base32String[i]);
+        if (value < 0) {
+          throw new Error('Invalid Base32 character: ' + base32String[i]);
+        }
         bits += value.toString(2).padStart(5, '0');
       }
 
@@ -670,6 +724,12 @@
         throw new Error('Missing required parameter: secret');
       }
 
+      const cleanedSecret = normalizeBase32Secret(secret);
+      const secretError = validateBase32Secret(cleanedSecret);
+      if (secretError) {
+        throw new Error('Invalid Base32 secret in URI: ' + secretError);
+      }
+
       let user = label;
       let serviceName = issuer || '';
 
@@ -696,7 +756,7 @@
       }
 
       return {
-        secret: secret.toUpperCase().replace(/\s/g, ''),
+        secret: cleanedSecret,
         label: serviceName,
         user: user,
         algorithm: algorithm,
@@ -756,10 +816,9 @@
 
     async function findNextAvailableId() {
       try {
-        const response = await fetch(`${baseUrl}/getOTPs`);
-        const data = await response.json();
+        const data = await fetchJson(`${baseUrl}/getOTPs`);
 
-        if (data === 'LOCKED') {
+        if (data.locked) {
           return 1;
         }
 
@@ -778,24 +837,227 @@
     }
 
     // --- GET OTP LIST LOGIC ---
-    fetch(`${baseUrl}/getOTPs`)
-      .then(response => response.json())
-      .then(data => {
-        const otpList = document.getElementById('otpList');
-        data.OTPs.forEach(entry => {
-          const listItem = document.createElement('li');
-          listItem.classList.add('otpItem');
-          listItem.innerHTML = `
-            <strong>ID: </strong>${entry.id}<br>
-            <strong>Label:</strong> ${entry.L}<br>
-            <strong>User:</strong> ${entry.U}<br>
-            <strong>Digits:</strong> ${entry.D || 6}
-            <button type="button" class="deleteButton" onclick="deleteOTP(${entry.id})">delete</button>
-          `;
-          otpList.appendChild(listItem);
+    // Labels and usernames come from the device and are inserted with
+    // textContent only, never innerHTML, so a stored value cannot inject
+    // markup into the page.
+    //
+    // Rows are compact by design: avatar + service + account on the
+    // left, a small code with a thin remaining-time bar on the right.
+    // The code is a supporting detail here (the device screen is where
+    // codes are read), so it stays small and quiet.
+    const avatarPalette = [
+      ['#7c3aed', '#ede9fe'],
+      ['#0f766e', '#ccfbf1'],
+      ['#b45309', '#fef3c7'],
+      ['#be185d', '#fce7f3'],
+      ['#0369a1', '#e0f2fe'],
+      ['#15803d', '#dcfce7'],
+    ];
+
+    function loadOtpList() {
+      return fetchJson(`${baseUrl}/getOTPs`)
+        .then(data => {
+          if (data.locked) {
+            showToast('Device is locked. Enter the PIN to unlock.', 'error');
+            showLockPanel();
+            return;
+          }
+
+          const otpList = document.getElementById('otpList');
+          otpList.innerHTML = '';
+          const countEl = document.getElementById('otpCount');
+          countEl.textContent = data.OTPs.length === 1 ? '1 account' : data.OTPs.length + ' accounts';
+
+          if (data.OTPs.length === 0) {
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'otpEmpty';
+            emptyItem.textContent = 'No accounts yet. Add your first one above.';
+            otpList.appendChild(emptyItem);
+            return;
+          }
+
+          data.OTPs.forEach(entry => {
+            const label = entry.L || '';
+
+            const listItem = document.createElement('li');
+            listItem.classList.add('otpItem');
+
+            const rowWrap = document.createElement('div');
+            rowWrap.classList.add('otpRowWrap');
+
+            // The row itself copies the code; the delete button sits
+            // beside it so the two actions never nest.
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.classList.add('otpRow');
+            row.addEventListener('click', function() {
+              copyCode(entry.id);
+            });
+
+            const avatar = document.createElement('span');
+            avatar.classList.add('otpAvatar');
+            avatar.textContent = label ? label.charAt(0).toUpperCase() : '?';
+            const palette = avatarPalette[entry.id % avatarPalette.length];
+            avatar.style.backgroundColor = palette[0];
+            avatar.style.color = palette[1];
+            row.appendChild(avatar);
+
+            const meta = document.createElement('span');
+            meta.classList.add('otpMeta');
+            const labelEl = document.createElement('span');
+            labelEl.classList.add('otpLabel');
+            labelEl.textContent = label || 'Account ' + entry.id;
+            meta.appendChild(labelEl);
+            const userEl = document.createElement('span');
+            userEl.classList.add('otpUser');
+            userEl.textContent = entry.U || '';
+            meta.appendChild(userEl);
+            row.appendChild(meta);
+
+            // Live code for this entry, filled in by loadCodes(). The
+            // code itself is generated on the device; the page never
+            // sees the secret.
+            const codeBox = document.createElement('span');
+            codeBox.classList.add('otpCodeBox');
+            const codeSpan = document.createElement('span');
+            codeSpan.classList.add('otpCode');
+            codeSpan.dataset.otpId = entry.id;
+            codeSpan.textContent = '...';
+            codeBox.appendChild(codeSpan);
+            const countdownSpan = document.createElement('span');
+            countdownSpan.classList.add('otpCountdown');
+            countdownSpan.dataset.otpId = entry.id;
+            countdownSpan.textContent = '';
+            codeBox.appendChild(countdownSpan);
+            row.appendChild(codeBox);
+
+            rowWrap.appendChild(row);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.classList.add('deleteButton');
+            deleteButton.setAttribute('aria-label', 'Delete ' + (label || 'account'));
+            deleteButton.textContent = '×';
+            deleteButton.addEventListener('click', function(event) {
+              event.stopPropagation();
+              deleteOTP(entry.id);
+            });
+            rowWrap.appendChild(deleteButton);
+
+            listItem.appendChild(rowWrap);
+
+            const bar = document.createElement('div');
+            bar.classList.add('otpBar');
+            const barFill = document.createElement('div');
+            barFill.classList.add('otpBarFill');
+            barFill.dataset.otpId = entry.id;
+            bar.appendChild(barFill);
+            listItem.appendChild(bar);
+
+            otpList.appendChild(listItem);
+          });
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    }
+
+    // --- LIVE TOTP CODES LOGIC ---
+    // Codes come from GET /getCodes, which generates them on the device.
+    // The page keeps the current code per OTP id and the seconds left in
+    // the 30 second window, counts down once a second, and refetches
+    // when the window rolls over.
+    let otpCodes = {};
+    let codeRemaining = 0;
+    let codeTimerId = null;
+
+    async function loadCodes() {
+      try {
+        const data = await fetchJson(`${baseUrl}/getCodes`);
+
+        if (data.locked) {
+          showToast('Device is locked. Enter the PIN to unlock.', 'error');
+          showLockPanel();
+          return;
+        }
+
+        otpCodes = {};
+        (data.codes || []).forEach(function(entry) {
+          otpCodes[entry.id] = entry.code;
         });
-      })
-      .catch(error => console.error('Error fetching data:', error));
+        codeRemaining = typeof data.remaining === 'number' ? data.remaining : 30;
+        updateCodeDisplay();
+        startCodeTimer();
+      } catch (error) {
+        console.error('Error fetching codes:', error);
+      }
+    }
+
+    function updateCodeDisplay() {
+      document.querySelectorAll('.otpCode').forEach(function(span) {
+        const code = otpCodes[span.dataset.otpId];
+        span.textContent = code || '...';
+      });
+      document.querySelectorAll('.otpCountdown').forEach(function(span) {
+        span.textContent = codeRemaining > 0 ? codeRemaining + 's' : '';
+      });
+      // Thin remaining-time bar under each row; turns red in the
+      // last 5 seconds of the 30 second window.
+      document.querySelectorAll('.otpBarFill').forEach(function(bar) {
+        bar.style.width = Math.max(0, Math.min(100, (codeRemaining / 30) * 100)) + '%';
+        bar.classList.toggle('low', codeRemaining <= 5);
+      });
+    }
+
+    function startCodeTimer() {
+      if (codeTimerId !== null) {
+        return;
+      }
+      codeTimerId = setInterval(function() {
+        codeRemaining -= 1;
+        if (codeRemaining <= 0) {
+          loadCodes();
+          return;
+        }
+        updateCodeDisplay();
+      }, 1000);
+    }
+
+    function copyCode(id) {
+      const code = otpCodes[id];
+      if (!code) {
+        showToast('Code is not available yet.', 'warning');
+        return;
+      }
+      // The clipboard API is not available on plain HTTP origins, so
+      // fall back to a temporary textarea when it is missing or fails.
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(function() {
+          showToast('Code copied.', 'success');
+        }).catch(function() {
+          copyCodeFallback(code);
+        });
+      } else {
+        copyCodeFallback(code);
+      }
+    }
+
+    function copyCodeFallback(code) {
+      const textarea = document.createElement('textarea');
+      textarea.value = code;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        if (document.execCommand('copy')) {
+          showToast('Code copied.', 'success');
+        } else {
+          showToast('Could not copy the code.', 'error');
+        }
+      } catch (error) {
+        showToast('Could not copy the code.', 'error');
+      }
+      textarea.remove();
+    }
 
     function deleteOTP(id) {
       fetch(`${baseUrl}/delete`, {
@@ -805,16 +1067,11 @@
         },
         body: JSON.stringify({ id: id })
       })
-      .then(response => {
-        if (response.ok) {
-          return 'removed';
-        } else {
-          throw new Error('Failed to delete');
-        }
-      })
+      .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
-        setTimeout(() => location.reload(), 1500);
+        if (toastForResult(message, 'OTP removed.')) {
+          setTimeout(() => location.reload(), 1500);
+        }
       })
       .catch(error => {
         console.error('Error deleting OTP:', error);
@@ -829,12 +1086,16 @@
       togglePasswordModeVisibility();
     }
 
-    fetch(`${baseUrl}/getWifi`)
-      .then(response => response.json())
-      .then(data => {
-        populateFields(data);
-      })
-      .catch(error => console.error('Error fetching initial values:', error));
+    function loadWifiSettings() {
+      fetchJson(`${baseUrl}/getWifi`)
+        .then(data => {
+          if (data.locked) {
+            return;
+          }
+          populateFields(data);
+        })
+        .catch(error => console.error('Error fetching initial values:', error));
+    }
 
     function togglePasswordModeVisibility() {
       const wifiMode = document.getElementById('wifiModeSelect').value;
@@ -866,7 +1127,7 @@
       })
       .then(response => response.text())
       .then(message => {
-        showToast(message, 'success');
+        toastForResult(message, 'WiFi settings applied.');
       })
       .catch(error => {
         console.error('Error applying settings:', error);
@@ -883,7 +1144,7 @@
         })
         .then(response => response.text())
         .then(message => {
-          showToast(message, 'success');
+          toastForResult(message, 'Device reset.');
         })
         .catch(error => {
           console.error('Error resetting device:', error);
@@ -900,6 +1161,10 @@
 
     document.getElementById('upload_form').addEventListener('submit', function(e) {
       e.preventDefault();
+
+      // Reset the progress display for this upload.
+      document.getElementById('bar').style.width = '0%';
+      document.getElementById('prg').textContent = '';
 
       const form = document.getElementById('upload_form');
       const data = new FormData(form);
@@ -945,6 +1210,10 @@
         }, 500);
       }
     });
+
+    // Check the PIN status first; the OTP list and settings are only
+    // loaded once the device is known to be unlocked (or has no PIN).
+    checkPinStatus();
   </script>
 </body>
 </html>

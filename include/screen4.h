@@ -29,7 +29,7 @@ void Time_drift_screen() {
       M5.Lcd.fillRect(0, toolbar_height, screen_x, screen_y - toolbar_height, bg_color);
       if (current_screen == STICKC) {
         M5.Lcd.setFont(&beta8pt7b);
-        M5.Lcd.setCursor(5, 25);
+        M5.Lcd.setCursor(5, 20);
       } else {
         M5.Lcd.setFont(&beta10pt7b);
         M5.Lcd.setCursor(5, 30);
@@ -43,7 +43,7 @@ void Time_drift_screen() {
                            getString_2digit(localTime.time.seconds);
       if (current_screen == STICKC) {
         M5.Lcd.setFont(&beta8pt7b);
-        M5.Lcd.setCursor(5, 45);
+        M5.Lcd.setCursor(5, 34);
       } else {
         M5.Lcd.setFont(&beta10pt7b);
         M5.Lcd.setCursor(5, 55);
@@ -51,7 +51,7 @@ void Time_drift_screen() {
       M5.Lcd.print(currentTime);
       if (current_screen == STICKC) {
         M5.Lcd.setFont(&beta5pt7b);
-        M5.Lcd.setCursor(5, 65);
+        M5.Lcd.setCursor(5, 50);
       } else {
         M5.Lcd.setFont(&beta8pt7b);
         M5.Lcd.setCursor(5, 85);
@@ -59,17 +59,24 @@ void Time_drift_screen() {
       M5.Lcd.setTextColor(selected_field == 0 ? TFT_YELLOW : txt_color, bg_color);
       M5.Lcd.printf("Minutes: %+d", (int)adjust_minutes);
       if (current_screen == STICKC) {
-        M5.Lcd.setCursor(5, 80);
+        M5.Lcd.setCursor(5, 60);
       } else {
         M5.Lcd.setCursor(5, 105);
       }
       M5.Lcd.setTextColor(selected_field == 1 ? TFT_YELLOW : txt_color, bg_color);
       M5.Lcd.printf("Seconds: %+d", (int)adjust_seconds);
-      if (current_screen == STICKCPLUS2) {
-        M5.Lcd.setFont(&beta5pt7b);
-        M5.Lcd.setTextColor(txt_color, bg_color);
-        M5.Lcd.setCursor(5, 130);
-        M5.Lcd.print("A:change field  B:next");
+      // Shortcuts: BtnA tap +1 (minutes, or +10 seconds), BtnA double-tap
+      // switches field, BtnA hold -1 (-10 seconds), BtnB next screen.
+      M5.Lcd.setFont(&beta5pt7b);
+      M5.Lcd.setTextColor(txt_color, bg_color);
+      if (current_screen == STICKC) {
+        M5.Lcd.setCursor(5, 70);
+        M5.Lcd.print("A:+1 dbl:fld hold:-1 B:nxt");
+      } else {
+        M5.Lcd.setCursor(5, 120);
+        M5.Lcd.print("A:tap +1  dbl:field");
+        M5.Lcd.setCursor(5, 128);
+        M5.Lcd.print("A:hold -1  B:next");
       }
     }
 
@@ -108,7 +115,7 @@ void Time_drift_screen() {
       if (is_double) {
         selected_field = 1 - selected_field;
         last_release_ms = 0;
-        M5.Speaker.tone(3000, 80);
+// M5.Speaker.tone(3000, 80);
       } else {
         time_t t;
         tm rtc_tm = M5.Rtc.getDateTime().get_tm();
@@ -126,7 +133,7 @@ void Time_drift_screen() {
         M5.Rtc.setDateTime(adj);
         setTime(adj->tm_hour, adj->tm_min, adj->tm_sec, adj->tm_mday, adj->tm_mon + 1, adj->tm_year + 1900);
         NVS.setInt("last_time_synced", (int)t);
-        M5.Speaker.tone(2000, 50);
+// M5.Speaker.tone(2000, 50);
         last_release_ms = now_ms;
       }
       previousMillis = millis();
@@ -148,7 +155,7 @@ void Time_drift_screen() {
         M5.Lcd.fillRect(0, toolbar_height, screen_x, screen_y - toolbar_height, bg_color);
         if (current_screen == STICKC) {
           M5.Lcd.setFont(&beta8pt7b);
-          M5.Lcd.setCursor(5, 25);
+          M5.Lcd.setCursor(5, 20);
         } else {
           M5.Lcd.setFont(&beta10pt7b);
           M5.Lcd.setCursor(5, 30);
@@ -162,7 +169,7 @@ void Time_drift_screen() {
                              getString_2digit(localTime.time.seconds);
         if (current_screen == STICKC) {
           M5.Lcd.setFont(&beta8pt7b);
-          M5.Lcd.setCursor(5, 45);
+          M5.Lcd.setCursor(5, 34);
         } else {
           M5.Lcd.setFont(&beta10pt7b);
           M5.Lcd.setCursor(5, 55);
@@ -170,7 +177,7 @@ void Time_drift_screen() {
         M5.Lcd.print(currentTime);
         if (current_screen == STICKC) {
           M5.Lcd.setFont(&beta5pt7b);
-          M5.Lcd.setCursor(5, 65);
+          M5.Lcd.setCursor(5, 50);
         } else {
           M5.Lcd.setFont(&beta8pt7b);
           M5.Lcd.setCursor(5, 85);
@@ -178,17 +185,24 @@ void Time_drift_screen() {
         M5.Lcd.setTextColor(selected_field == 0 ? TFT_YELLOW : txt_color, bg_color);
         M5.Lcd.printf("Minutes: %+d", (int)adjust_minutes);
         if (current_screen == STICKC) {
-          M5.Lcd.setCursor(5, 80);
+          M5.Lcd.setCursor(5, 60);
         } else {
           M5.Lcd.setCursor(5, 105);
         }
         M5.Lcd.setTextColor(selected_field == 1 ? TFT_YELLOW : txt_color, bg_color);
         M5.Lcd.printf("Seconds: %+d", (int)adjust_seconds);
-        if (current_screen == STICKCPLUS2) {
-          M5.Lcd.setFont(&beta5pt7b);
-          M5.Lcd.setTextColor(txt_color, bg_color);
-          M5.Lcd.setCursor(5, 130);
-          M5.Lcd.print("A:change field  B:next");
+        // Shortcuts: BtnA tap +1 (minutes, or +10 seconds), BtnA double-tap
+        // switches field, BtnA hold -1 (-10 seconds), BtnB next screen.
+        M5.Lcd.setFont(&beta5pt7b);
+        M5.Lcd.setTextColor(txt_color, bg_color);
+        if (current_screen == STICKC) {
+          M5.Lcd.setCursor(5, 70);
+          M5.Lcd.print("A:+1 dbl:fld hold:-1 B:nxt");
+        } else {
+          M5.Lcd.setCursor(5, 120);
+          M5.Lcd.print("A:tap +1  dbl:field");
+          M5.Lcd.setCursor(5, 128);
+          M5.Lcd.print("A:hold -1  B:next");
         }
       } else {
         pending_redraw = true;

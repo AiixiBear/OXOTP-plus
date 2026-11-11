@@ -1,4 +1,7 @@
 // DNS Server for Captive Portal
+#include <time.h>
+#include <esp_sntp.h>
+
 DNSServer dnsServer;
 const byte DNS_PORT = 53;
 bool _dnsStarted = false;
@@ -24,7 +27,53 @@ void handleGenerate204() {
   server.send(302, "text/plain", "");
 }
 
+// NTP time sync, only usable in STA mode (AP mode has no uplink).
+// Bounded: tries a few times, then gives up without blocking the WiFi
+// screen. On failure the manual sync paths (WebUI /unix, drift screen)
+// are untouched, and the previously held time is kept.
+// Note: getLocalTime alone cannot prove a sync happened, because it also
+// succeeds while the RTC still holds a plausible old time. The SNTP sync
+// status is checked instead, so last_time_synced is only updated when the
+// time actually came from an NTP server.
+#define NTP_SYNC_ATTEMPTS 3
+#define NTP_SYNC_WAIT_MS 2000
+
+bool syncTimeFromNTP() {
+  long gmtOffset_sec = (long)timezone_h * 3600 + (long)timezone_m * 60;
+  configTime(gmtOffset_sec, 0, "pool.ntp.org", "time.google.com");
+
+  for (int attempt = 0; attempt < NTP_SYNC_ATTEMPTS; attempt++) {
+    unsigned long start = millis();
+    while (millis() - start < NTP_SYNC_WAIT_MS) {
+      if (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED) {
+        time_t epoch = time(nullptr);
+        // Reject implausible results instead of trusting them.
+        if (epoch < 1700000000L) {
+          break;
+        }
+        tm* utc_tm = gmtime(&epoch);
+        M5.Rtc.setDateTime(utc_tm);
+        setTime(epoch);
+        NVS.setInt("last_time_synced", (int)epoch);
+        Serial.println("NTP time sync OK");
+        return true;
+      }
+      delay(100);
+    }
+  }
+
+  Serial.println("NTP time sync failed, keeping previous time");
+  return false;
+}
+
 void Wifi_screen() {
+
+  // When the AP password was printed on screen, and whether it has been
+  // masked since. The password is shown in clear text for 5s, then
+  // replaced with asterisks: it would otherwise stay readable by anyone
+  // nearby for as long as the WiFi screen is open.
+  unsigned long wifiPassShownAt = 0;
+  bool wifiPassMasked = false;
 
   // -------  GET THE WIFI SETTINGS --------- //
 
@@ -38,9 +87,13 @@ void Wifi_screen() {
 
 
   //----- generate password for wifi
+  // Arduino random() is backed by the ESP32 hardware RNG (esp_random)
+  // unless randomSeed() was called, which this project never does, so no
+  // extra seeding is needed. random(min, max) returns [min, max), so the
+  // upper bound must be the full length for every character to be usable.
   String pass_gen = "";
-  for (int i = 0; i < 8; i++) {
-    pass_gen += rondom_letters[random(0, rondom_letters.length() - 1)];
+  for (int i = 0; i < 12; i++) {
+    pass_gen += rondom_letters[random(0, rondom_letters.length())];
   }
   
   String pass_static = ""; // Default password
@@ -124,12 +177,18 @@ void Wifi_screen() {
     Wifi_PASSWORD = pass_gen; // generate a new password for fallback AP mode
     WiFi.mode(WIFI_AP);
     WiFi.softAP(AP_ssid, pass_gen);
-    Serial.println("AP mode started, ssid: " + String(AP_ssid) + ", password: " + password);
+    Serial.println("AP mode started (fallback)");
     
     // Start DNS server for captive portal
     dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
     _dnsStarted = true;
     Serial.println("Captive portal DNS started (fallback)");
+  }
+
+  // STA mode with a working uplink: correct the RTC from NTP. AP mode has
+  // no uplink, and a failed sync simply keeps the previous time.
+  if (Wifi_Mode != "AP" && WiFi.status() == WL_CONNECTED) {
+    syncTimeFromNTP();
   }
 
     // use mdns to resolve the hostname
@@ -178,6 +237,7 @@ void Wifi_screen() {
   // only for M5StickC Plus 2
   if (Wifi_Mode == "AP") {
     M5.Lcd.print (Wifi_PASSWORD);
+    wifiPassShownAt = millis();
 
     if (current_screen == STICKCPLUS2) {
       M5.Lcd.setFont(&beta5pt7b);
@@ -233,7 +293,7 @@ void Wifi_screen() {
   });
 
   // Route to load style.css file
-  server.on("/css/pico.violet.min.css", HTTP_GET, []() {
+  server.on("/css/tailwind.min.css", HTTP_GET, []() {
     server.sendHeader("Content-Encoding", "gzip");
     server.send_P(200, "text/css", css_gz, sizeof(css_gz));
   });
@@ -264,8 +324,6 @@ void Wifi_screen() {
 
       for (int i = 0; i < hmac_length; i++) {
         hmacKey[i] = jsondata["data"][i];
-
-        Serial.println("key ' " + String(i) + "'" + hmacKey[i]);
       }
 
       int id = jsondata["id"];
@@ -314,7 +372,6 @@ void Wifi_screen() {
 
     String pincode = NVS.getString ("pincode");
     if (pin_UNLOCK == pincode) {
-      server.send(200, " text/html", "OK");
       deserializeJson(jsondata, server.arg(0));
       int id = jsondata["id"];
 
@@ -335,6 +392,10 @@ void Wifi_screen() {
       NVS.erase(otpUser);
       NVS.erase(otpDigits);
       NVS.erase(String(id));
+
+      // Reply only after the entry has been removed, so the client never
+      // sees a success for a delete that did not happen.
+      server.send(200, " text/html", "OK");
     } else {
       server.send(200, " text/html", "LOCKED");
     }
@@ -416,6 +477,13 @@ void Wifi_screen() {
     String  pincode = NVS.getString ("pincode");
 
     if (pin_UNLOCK == pincode) {
+      // The device only has two buttons (BtnA = 8, BtnB = 7), so a PIN
+      // with any other digit could never be entered on the device.
+      // Reject it here instead of writing an un-enterable PIN to NVS.
+      if (!pinIsEnterable(pin)) {
+        server.send(200, " text/html", "INVALID PIN");
+        return;
+      }
       pin_UNLOCK = pin;
       NVS.setString ("pincode", pin);
       server.send(200, " text/html", "OK");
@@ -505,6 +573,15 @@ void Wifi_screen() {
   server.on("/timezone", HTTP_POST, []() {
     previousMillis = millis();
     jsondata.clear();
+
+    // Same PIN check as the other write endpoints; the GET handler stays
+    // open so the page can read the timezone before unlocking.
+    String pincode = NVS.getString ("pincode");
+    if (pin_UNLOCK != pincode) {
+      server.send(200, "text/html", "LOCKED");
+      return;
+    }
+
     deserializeJson(jsondata, server.arg(0)); 
 
     // set timezone_h and timezone_m from the float value
@@ -554,6 +631,50 @@ void Wifi_screen() {
         json_counter++;
       }
     }
+
+    String  dataout = "";
+    serializeJson(jsondata, dataout);
+
+    server.send(200, "text/html", dataout);
+  });
+
+  //----------------getCodes--------------              get the current TOTP codes
+  // Codes are generated on the device: the secrets never leave it, the WebUI
+  // only receives the codes for the current 30 second window plus the number
+  // of seconds left in that window.
+  server.on("/getCodes", HTTP_GET, []() {
+    previousMillis = millis();
+    String  pincode = NVS.getString ("pincode");
+    if (pin_UNLOCK != pincode) {
+      server.send(200, "text/html", "LOCKED");
+      return;
+    }
+
+    jsondata.clear();
+    int  json_counter = 0;
+    JsonArray data = jsondata["codes"].to<JsonArray>();
+
+    for (int  i = 0; i < maxOTPs; i++) {
+      String  otpBool = "B" + String ((i + 1));
+      if (NVS.getInt (otpBool) != 1) {
+        continue;
+      }
+
+      size_t hmac_length = NVS.getBlobSize(String(i + 1));
+      if (hmac_length == 0) {
+        continue;
+      }
+
+      uint8_t hmacKey[hmac_length] = {};
+      NVS.getBlob(String(i + 1), hmacKey, hmac_length);
+      String code = generateTOTP(hmacKey, hmac_length, now(), getOTPDigits(i + 1));
+
+      jsondata["codes"][json_counter]["id"] = (i + 1);
+      jsondata["codes"][json_counter]["code"] = code;
+      json_counter++;
+    }
+
+    jsondata["remaining"] = 30 - (second() % 30);
 
     String  dataout = "";
     serializeJson(jsondata, dataout);
@@ -651,6 +772,14 @@ server.on("/setWifi", HTTP_POST, []() {
   server.on("/setScreen", HTTP_POST, []() {
     previousMillis = millis();
     jsondata.clear();
+
+    // Same PIN check as the other write endpoints.
+    String pincode = NVS.getString ("pincode");
+    if (pin_UNLOCK != pincode) {
+      server.send(200, "text/html", "LOCKED");
+      return;
+    }
+
     deserializeJson(jsondata, server.arg(0));
 
     if (!jsondata["brightness"].isNull()) {
@@ -676,18 +805,23 @@ server.on("/setWifi", HTTP_POST, []() {
       timeout_ScreenOn = _timeout;
       NVS.setInt("timeout_ScreenOn", _timeout);
       Serial.println("timeout_ScreenOn: " + String(timeout_ScreenOn));
+    }
 
-      if (!jsondata["bg_color"].isNull()) {
+    // Colors are independent of the timeout: previously they were nested
+    // inside the timeout block and silently ignored when no timeout was sent.
+    if (!jsondata["bg_color"].isNull()) {
       bg_color = jsondata["bg_color"];
       NVS.setInt("bg_color", bg_color);
-      }
+    }
 
     if (!jsondata["txt_color"].isNull()) {
       txt_color = jsondata["txt_color"];
       NVS.setInt("txt_color", txt_color);
     }
-    M5.Lcd.fillScreen(bg_color);
-    M5.Lcd.setTextColor(txt_color, bg_color);
+
+    if (!jsondata["bg_color"].isNull() || !jsondata["txt_color"].isNull()) {
+      M5.Lcd.fillScreen(bg_color);
+      M5.Lcd.setTextColor(txt_color, bg_color);
     }
 
     server.send(200, "text/html", "OK");
@@ -764,6 +898,26 @@ server.on("/setWifi", HTTP_POST, []() {
   Serial.println("HTTP server started");
   
   while (switchscreen() == false) {
+    // Mask the AP password 5s after it was printed. This runs once and
+    // never blocks: the DNS and HTTP handlers below keep running.
+    if (Wifi_Mode == "AP" && !wifiPassMasked && wifiPassShownAt != 0 &&
+        millis() - wifiPassShownAt > 5000) {
+      wifiPassMasked = true;
+      int maskLen = Wifi_PASSWORD.length();
+      if (current_screen == STICKC) {
+        M5.Lcd.setFont(&beta5pt7b);
+        M5.Lcd.fillRect(10, 43, maskLen * 5 + 4, 8, bg_color);
+        M5.Lcd.setCursor(10, 43);
+      } else {
+        M5.Lcd.setFont(&beta8pt7b);
+        M5.Lcd.fillRect(10, 90, maskLen * 7 + 4, 12, bg_color);
+        M5.Lcd.setCursor(10, 90);
+      }
+      M5.Lcd.setTextColor(txt_color, bg_color);
+      for (int i = 0; i < maskLen; i++) {
+        M5.Lcd.print("*");
+      }
+    }
     // Process DNS requests for captive portal
     if (_dnsStarted) {
       dnsServer.processNextRequest();
