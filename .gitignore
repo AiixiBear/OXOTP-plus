@@ -45,3 +45,7 @@
 *.swp
 *.swo
 *~
+
+# Tailwind CSS standalone CLI binary (download from GitHub releases,
+# see README "Modifying the Web Interface"); do not commit it.
+tools/tailwindcss

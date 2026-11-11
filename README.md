@@ -82,11 +82,29 @@ All dependencies are automatically managed by PlatformIO.
 
 ### Modifying the Web Interface:
 
-If you modify `web/index.html`, regenerate the C headers:
+The WebUI is styled with [Tailwind CSS v4](https://tailwindcss.com/).
+The source of truth is `web/input.css`; the compiled stylesheet is
+`web/tailwind.min.css`, which is gzipped into `include/css.h` by the
+header generator and served at `/css/tailwind.min.css`.
+
+The Tailwind standalone CLI is a single binary (no Node needed).
+Download it into `tools/` (it is git-ignored, do not commit it):
 
 ```bash
+curl -L -o tools/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64
+chmod +x tools/tailwindcss
+```
+
+After changing `web/index.html` or `web/input.css`, rebuild the CSS
+and regenerate the C headers:
+
+```bash
+./tools/tailwindcss -i web/input.css -o web/tailwind.min.css --minify
 go run tools/generate_headers.go
 ```
+
+Then rebuild the firmware as usual. (Tailwind v4.3.5 was used for the
+current stylesheet.)
 
 
 ## DEVELOPED FOR DAILY USE:

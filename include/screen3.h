@@ -293,7 +293,7 @@ void Wifi_screen() {
   });
 
   // Route to load style.css file
-  server.on("/css/pico.violet.min.css", HTTP_GET, []() {
+  server.on("/css/tailwind.min.css", HTTP_GET, []() {
     server.sendHeader("Content-Encoding", "gzip");
     server.send_P(200, "text/css", css_gz, sizeof(css_gz));
   });
