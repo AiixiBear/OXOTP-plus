@@ -8,7 +8,11 @@
 // BtnA long press types the selected code over BLE, BtnB moves to the
 // next screen (handled by switchscreen, as on the other screens).
 
-#define OTP_LIST_ROW_H 28
+// Two text lines per row need breathing room: 3 rows of 38px on the
+// Plus2 (118px of content), 2 rows of 31px on the M5StickC (63px).
+// Four 28px rows turned out too cramped on the Plus2.
+#define OTP_LIST_ROW_H_PLUS2 38
+#define OTP_LIST_ROW_H_STICKC 31
 
 void OTP_list_screen() {
   int ids[maxOTPs];
@@ -19,9 +23,12 @@ void OTP_list_screen() {
     }
   }
 
-  // Rows that fit below the toolbar: 4 on the Plus2 (118px), 2 on the
+  // Rows that fit below the toolbar: 3 on the Plus2 (118px), 2 on the
   // M5StickC (63px). The window scrolls so the selection stays visible.
-  int visibleRows = (screen_y - toolbar_height) / OTP_LIST_ROW_H;
+  const int rowH = (current_screen == STICKC) ? OTP_LIST_ROW_H_STICKC : OTP_LIST_ROW_H_PLUS2;
+  const int labelYOffset = (current_screen == STICKC) ? 2 : 5;
+  const int codeYOffset = (current_screen == STICKC) ? 16 : 22;
+  int visibleRows = (screen_y - toolbar_height) / rowH;
   int sel = 0;                 // index into ids[]
   int winStart = 0;            // first visible row
 
@@ -97,22 +104,22 @@ void OTP_list_screen() {
         if (idx >= how_many) {
           break;
         }
-        int rowTop = toolbar_height + r * OTP_LIST_ROW_H;
+        int rowTop = toolbar_height + r * rowH;
         bool selected = (idx == sel);
         if (selected) {
-          M5.Lcd.fillRect(0, rowTop, screen_x, OTP_LIST_ROW_H, txt_color);
+          M5.Lcd.fillRect(0, rowTop, screen_x, rowH, txt_color);
         }
 
         // Label line. The selected row also shows its position, e.g. "2/7".
         M5.Lcd.setTextColor(selected ? bg_color : txt_color, selected ? txt_color : bg_color);
         M5.Lcd.setFont(&beta8pt7b);
-        M5.Lcd.setCursor(5, rowTop + 2);
+        M5.Lcd.setCursor(5, rowTop + labelYOffset);
         String label = NVS.getString("L" + String(ids[idx]));
         int maxLabelChars = (current_screen == STICKC) ? 14 : 24;
         M5.Lcd.print(label.substring(0, maxLabelChars));
         if (selected) {
           String pos = String(idx + 1) + "/" + String(how_many);
-          M5.Lcd.setCursor(screen_x - 5 - M5.Lcd.textWidth(pos), rowTop + 2);
+          M5.Lcd.setCursor(screen_x - 5 - M5.Lcd.textWidth(pos), rowTop + labelYOffset);
           M5.Lcd.print(pos);
         }
 
@@ -123,12 +130,12 @@ void OTP_list_screen() {
         } else {
           M5.Lcd.setFont(&beta10pt7b);
         }
-        M5.Lcd.setCursor(5, rowTop + 15);
+        M5.Lcd.setCursor(5, rowTop + codeYOffset);
         M5.Lcd.print(cachedCodes[idx]);
         if (selected) {
           String rem = String(OTP_TIME_STEP - (second() % OTP_TIME_STEP)) + "s";
           M5.Lcd.setFont(&beta8pt7b);
-          M5.Lcd.setCursor(screen_x - 5 - M5.Lcd.textWidth(rem), rowTop + 15);
+          M5.Lcd.setCursor(screen_x - 5 - M5.Lcd.textWidth(rem), rowTop + codeYOffset);
           M5.Lcd.print(rem);
         }
       }
@@ -141,13 +148,13 @@ void OTP_list_screen() {
       lastSec = second();
       int r = sel - winStart;
       if (r >= 0 && r < visibleRows) {
-        int rowTop = toolbar_height + r * OTP_LIST_ROW_H;
+        int rowTop = toolbar_height + r * rowH;
         M5.Lcd.setFont(&beta8pt7b);
         int maxRemW = M5.Lcd.textWidth("30s");
-        M5.Lcd.fillRect(screen_x - 5 - maxRemW, rowTop + 15, maxRemW, 12, txt_color);
+        M5.Lcd.fillRect(screen_x - 5 - maxRemW, rowTop + codeYOffset, maxRemW, 12, txt_color);
         String rem = String(OTP_TIME_STEP - (second() % OTP_TIME_STEP)) + "s";
         M5.Lcd.setTextColor(bg_color, txt_color);
-        M5.Lcd.setCursor(screen_x - 5 - M5.Lcd.textWidth(rem), rowTop + 15);
+        M5.Lcd.setCursor(screen_x - 5 - M5.Lcd.textWidth(rem), rowTop + codeYOffset);
         M5.Lcd.print(rem);
         M5.Lcd.setTextColor(txt_color, bg_color);
       }
